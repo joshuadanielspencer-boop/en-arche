@@ -1,0 +1,1551 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<title>En Archē</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cardo:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --vellum: #F9F6EE;
+    --vellum-deep: #F1ECDE;
+    --surface: #FFFFFF;
+    --ink: #2A2419;
+    --ink-soft: #6B6252;
+    --line: #DDD5C2;
+    --lapis: #33549E;
+    --lapis-ink: #FFFFFF;
+    --lapis-wash: #E9EDF7;
+    --gold: #A9802D;
+    --gold-wash: #F5EDDA;
+    --rubric: #A63A2B;
+    --rubric-wash: #F7E7E3;
+    --moss: #4A7A52;
+    --moss-wash: #E7F0E8;
+    --shadow: 0 1px 3px rgba(42, 36, 25, 0.08), 0 4px 14px rgba(42, 36, 25, 0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --vellum: #1D1912;
+      --vellum-deep: #16130D;
+      --surface: #262117;
+      --ink: #EAE2CE;
+      --ink-soft: #A79B82;
+      --line: #3B3427;
+      --lapis: #8AA6E8;
+      --lapis-ink: #16130D;
+      --lapis-wash: #262C3D;
+      --gold: #D2A94F;
+      --gold-wash: #322A1A;
+      --rubric: #D07A65;
+      --rubric-wash: #3A241F;
+      --moss: #7FAF83;
+      --moss-wash: #22301F;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --vellum: #1D1912;
+    --vellum-deep: #16130D;
+    --surface: #262117;
+    --ink: #EAE2CE;
+    --ink-soft: #A79B82;
+    --line: #3B3427;
+    --lapis: #8AA6E8;
+    --lapis-ink: #16130D;
+    --lapis-wash: #262C3D;
+    --gold: #D2A94F;
+    --gold-wash: #322A1A;
+    --rubric: #D07A65;
+    --rubric-wash: #3A241F;
+    --moss: #7FAF83;
+    --moss-wash: #22301F;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.3);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--vellum);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  .greek, .gk {
+    font-family: "Cardo", "Palatino Linotype", "Times New Roman", serif;
+  }
+  h1, h2, h3 {
+    font-family: "Cardo", "Palatino Linotype", Georgia, serif;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  /* ---------- shell ---------- */
+  header.bar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--vellum);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar-inner {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0.65rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .wordmark {
+    font-family: "Cardo", Georgia, serif;
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    white-space: nowrap;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  .wordmark .gk-mark { color: var(--lapis); }
+  nav.tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-left: auto;
+  }
+  .tab {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+    background: none;
+    border: none;
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    cursor: pointer;
+  }
+  .tab:hover { color: var(--ink); background: var(--vellum-deep); }
+  .tab.active { color: var(--lapis-ink); background: var(--lapis); }
+  .tab:focus-visible, button:focus-visible {
+    outline: 2px solid var(--lapis);
+    outline-offset: 2px;
+  }
+
+  main {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 5rem;
+  }
+
+  /* ---------- hero ---------- */
+  .hero {
+    text-align: center;
+    padding: 2.5rem 0 2rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 2rem;
+  }
+  .hero .uncial {
+    font-family: "Cardo", Georgia, serif;
+    font-size: clamp(1.6rem, 6vw, 2.9rem);
+    letter-spacing: 0.14em;
+    color: var(--lapis);
+    margin: 0 0 0.4rem;
+    font-weight: 400;
+  }
+  .hero .uncial .nomen {
+    border-top: 2px solid var(--gold);
+    padding-top: 0.05em;
+  }
+  .hero p.sub {
+    max-width: 34rem;
+    margin: 0.75rem auto 0;
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+  }
+  .hero .translation {
+    font-family: "Cardo", Georgia, serif;
+    font-style: italic;
+    font-size: 1.05rem;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+  .progress-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin-top: 1.4rem;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+  }
+  .progress-track {
+    width: 180px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--vellum-deep);
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--gold);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+
+  /* ---------- lesson path ---------- */
+  .path { display: flex; flex-direction: column; gap: 0.75rem; }
+  .lesson-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    text-align: left;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    box-shadow: var(--shadow);
+    transition: transform 0.12s ease;
+  }
+  .lesson-card:hover { transform: translateX(4px); border-color: var(--lapis); }
+  .lesson-glyph {
+    font-family: "Cardo", Georgia, serif;
+    font-size: 1.7rem;
+    color: var(--lapis);
+    width: 2.6rem;
+    height: 2.6rem;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--lapis-wash);
+    border-radius: 50%;
+  }
+  .lesson-card.done .lesson-glyph { background: var(--gold-wash); color: var(--gold); }
+  .lesson-meta { min-width: 0; }
+  .lesson-meta .kicker {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .lesson-meta h3 { font-size: 1.15rem; font-weight: 700; }
+  .lesson-meta p { margin: 0.15rem 0 0; font-size: 0.85rem; color: var(--ink-soft); }
+  .lesson-state {
+    margin-left: auto;
+    flex: none;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--gold);
+    white-space: nowrap;
+  }
+
+  /* ---------- lesson view ---------- */
+  .crumb {
+    background: none;
+    border: none;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--lapis);
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 1rem;
+  }
+  .lesson-head { margin-bottom: 1.5rem; }
+  .lesson-head .kicker {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+  .lesson-head h2 { font-size: 2rem; }
+  article.lesson-body { font-size: 1rem; max-width: 42rem; }
+  article.lesson-body p { margin: 0 0 1rem; }
+  article.lesson-body h3 {
+    font-size: 1.3rem;
+    margin: 2rem 0 0.75rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid var(--line);
+  }
+  article.lesson-body ul { margin: 0 0 1rem; padding-left: 1.2rem; }
+  article.lesson-body li { margin-bottom: 0.35rem; }
+  .gk { font-size: 1.12em; }
+  .gloss { color: var(--ink-soft); font-style: italic; }
+
+  .callout {
+    background: var(--lapis-wash);
+    border-left: 3px solid var(--lapis);
+    border-radius: 0 8px 8px 0;
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+    font-size: 0.92rem;
+  }
+  .callout strong:first-child { color: var(--lapis); }
+
+  table.paradigm {
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+    min-width: 100%;
+  }
+  .table-scroll { overflow-x: auto; margin: 1rem 0; }
+  .table-scroll table.paradigm { margin: 0; }
+  table.paradigm th, table.paradigm td {
+    padding: 0.45rem 0.9rem;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+  }
+  table.paradigm th {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  table.paradigm td.gk { font-size: 1.15rem; }
+  table.paradigm td { font-variant-numeric: tabular-nums; }
+
+  /* ---------- alphabet grid ---------- */
+  .letter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 0.5rem;
+    margin: 1rem 0;
+  }
+  .letter-cell {
+    font-family: "Cardo", Georgia, serif;
+    font-size: 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.5rem 0.25rem;
+    cursor: pointer;
+    color: var(--ink);
+    text-align: center;
+    line-height: 1.1;
+  }
+  .letter-cell small {
+    display: block;
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 0.62rem;
+    color: var(--ink-soft);
+    margin-top: 0.2rem;
+    letter-spacing: 0.03em;
+  }
+  .letter-cell.sel { border-color: var(--lapis); background: var(--lapis-wash); }
+  .letter-detail {
+    background: var(--surface);
+    border: 1px solid var(--lapis);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    margin: 0.75rem 0 1.25rem;
+    box-shadow: var(--shadow);
+  }
+  .letter-detail .big {
+    font-family: "Cardo", Georgia, serif;
+    font-size: 2.6rem;
+    color: var(--lapis);
+    line-height: 1;
+  }
+  .letter-detail dl { margin: 0.6rem 0 0; font-size: 0.9rem; }
+  .letter-detail dt { font-weight: 600; display: inline; }
+  .letter-detail dd { display: inline; margin: 0 0 0 0.3rem; }
+  .letter-detail .row { margin-bottom: 0.25rem; }
+
+  /* ---------- interlinear ---------- */
+  .interlinear {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.25rem 1.25rem 1rem;
+    margin: 1rem 0;
+    box-shadow: var(--shadow);
+  }
+  .verse-num {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--gold);
+    vertical-align: super;
+    margin-right: 0.3rem;
+  }
+  .il-word {
+    display: inline-block;
+    font-family: "Cardo", Georgia, serif;
+    font-size: 1.35rem;
+    background: none;
+    border: none;
+    border-bottom: 1px dotted var(--line);
+    color: var(--ink);
+    cursor: pointer;
+    padding: 0 0.1rem 0.1rem;
+    margin: 0.15rem 0.15rem;
+    line-height: 1.3;
+  }
+  .il-word:hover, .il-word.sel { border-bottom-color: var(--lapis); color: var(--lapis); }
+  .il-gloss {
+    margin-top: 0.9rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.9rem;
+    min-height: 2.4rem;
+    color: var(--ink-soft);
+  }
+  .il-gloss .gk { color: var(--lapis); font-size: 1.15rem; }
+  .il-gloss b { color: var(--ink); }
+
+  /* ---------- quiz ---------- */
+  .quiz {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1.4rem;
+    margin: 2.5rem 0 1rem;
+    box-shadow: var(--shadow);
+  }
+  .quiz .kicker {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 0.5rem;
+  }
+  .quiz h3 { font-size: 1.25rem; margin: 0 0 0.25rem; }
+  .quiz .qcount { font-size: 0.8rem; color: var(--ink-soft); margin-bottom: 1rem; }
+  .quiz .question {
+    font-size: 1.05rem;
+    font-weight: 500;
+    margin: 0 0 1rem;
+  }
+  .quiz .question .gk { font-size: 1.5rem; }
+  .choices { display: flex; flex-direction: column; gap: 0.5rem; }
+  .choice {
+    font: inherit;
+    font-size: 0.95rem;
+    text-align: left;
+    background: var(--vellum);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.6rem 0.9rem;
+    cursor: pointer;
+  }
+  .choice .gk { font-size: 1.15rem; }
+  .choice:hover:not(:disabled) { border-color: var(--lapis); }
+  .choice:disabled { cursor: default; }
+  .choice.correct { background: var(--moss-wash); border-color: var(--moss); color: var(--ink); }
+  .choice.wrong { background: var(--rubric-wash); border-color: var(--rubric); color: var(--ink); }
+  .quiz .feedback { margin-top: 0.9rem; font-size: 0.9rem; min-height: 1.4rem; }
+  .quiz .feedback.good { color: var(--moss); font-weight: 500; }
+  .quiz .feedback.bad { color: var(--rubric); font-weight: 500; }
+  .btn {
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    background: var(--lapis);
+    color: var(--lapis-ink);
+    border: none;
+    border-radius: 999px;
+    padding: 0.55rem 1.4rem;
+    cursor: pointer;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.ghost {
+    background: none;
+    color: var(--lapis);
+    border: 1px solid var(--lapis);
+  }
+  .quiz-result { text-align: center; padding: 1rem 0 0.5rem; }
+  .quiz-result .score {
+    font-family: "Cardo", Georgia, serif;
+    font-size: 2.4rem;
+    color: var(--gold);
+  }
+  .quiz-actions { display: flex; gap: 0.6rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
+
+  /* ---------- flashcards ---------- */
+  .deck-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 1rem 0 1.25rem;
+  }
+  .chip {
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: var(--surface);
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.3rem 0.85rem;
+    cursor: pointer;
+  }
+  .chip.active { background: var(--lapis); color: var(--lapis-ink); border-color: var(--lapis); }
+  .flashcard {
+    width: 100%;
+    min-height: 230px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 1.5rem;
+    text-align: center;
+    font: inherit;
+    color: inherit;
+  }
+  .flashcard .word {
+    font-family: "Cardo", Georgia, serif;
+    font-size: 2.6rem;
+    color: var(--lapis);
+    line-height: 1.15;
+  }
+  .flashcard .hint { font-size: 0.78rem; color: var(--ink-soft); }
+  .flashcard .answer {
+    font-size: 1.25rem;
+    font-family: "Cardo", Georgia, serif;
+  }
+  .flashcard .freq {
+    font-size: 0.75rem;
+    color: var(--gold);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+  .card-actions {
+    display: flex;
+    gap: 0.6rem;
+    justify-content: center;
+    margin-top: 1rem;
+  }
+  .btn.again { background: var(--rubric); color: #fff; }
+  .btn.got { background: var(--moss); color: #fff; }
+  .deck-stats {
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    margin-top: 0.9rem;
+  }
+
+  /* ---------- reference ---------- */
+  .ref-section { margin-bottom: 2.5rem; }
+  .ref-section h3 {
+    font-size: 1.35rem;
+    margin: 0 0 0.75rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  footer.colophon {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+
+  @media (max-width: 560px) {
+    .bar-inner { flex-wrap: wrap; padding-bottom: 0.5rem; }
+    nav.tabs { margin-left: 0; width: 100%; justify-content: space-between; }
+    .lesson-state { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+
+</head>
+<body>
+<header class="bar">
+  <div class="bar-inner">
+    <button class="wordmark" onclick="go('home')"><span class="gk-mark greek">Ἐν ἀρχῇ</span> · En Archē</button>
+    <nav class="tabs">
+      <button class="tab" id="tab-home" onclick="go('home')">Path</button>
+      <button class="tab" id="tab-cards" onclick="go('cards')">Flashcards</button>
+      <button class="tab" id="tab-ref" onclick="go('ref')">Reference</button>
+    </nav>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<footer class="colophon">
+  Pronunciation follows the Erasmian classroom convention. Vocabulary frequencies are approximate counts
+  of occurrences in the Greek New Testament. Set in Cardo, a typeface made for biblical scholarship.
+</footer>
+
+<script>
+/* ============================================================
+   State & storage
+============================================================ */
+const store = {
+  load() {
+    try {
+      const raw = localStorage.getItem('enarche-v1');
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return { lessons: {}, cards: {} };
+  },
+  save(state) {
+    try { localStorage.setItem('enarche-v1', JSON.stringify(state)); } catch (e) {}
+  }
+};
+let state = store.load();
+let view = 'home';
+let currentLesson = null;
+
+/* ============================================================
+   Data: alphabet
+============================================================ */
+const ALPHABET = [
+  { up:'Α', low:'α', name:'alpha',   tr:'a',  sound:'"a" as in father', note:'' },
+  { up:'Β', low:'β', name:'beta',    tr:'b',  sound:'"b" as in ball', note:'' },
+  { up:'Γ', low:'γ', name:'gamma',   tr:'g',  sound:'hard "g" as in gift', note:'Before γ, κ, χ, or ξ it is pronounced "n": ἄγγελος = angelos.' },
+  { up:'Δ', low:'δ', name:'delta',   tr:'d',  sound:'"d" as in dog', note:'' },
+  { up:'Ε', low:'ε', name:'epsilon', tr:'e',  sound:'short "e" as in met', note:'Always short. Contrast with η.' },
+  { up:'Ζ', low:'ζ', name:'zeta',    tr:'z',  sound:'"dz" as in adze (or "z")', note:'' },
+  { up:'Η', low:'η', name:'eta',     tr:'ē',  sound:'long "e" as in obey', note:'Always long. Looks like an English n — a classic beginner trap.' },
+  { up:'Θ', low:'θ', name:'theta',   tr:'th', sound:'"th" as in think', note:'' },
+  { up:'Ι', low:'ι', name:'iota',    tr:'i',  sound:'"i" as in sit, or "ee" as in machine', note:'Can be short or long. Never dotted.' },
+  { up:'Κ', low:'κ', name:'kappa',   tr:'k',  sound:'"k" as in kite', note:'' },
+  { up:'Λ', low:'λ', name:'lambda',  tr:'l',  sound:'"l" as in lamb', note:'' },
+  { up:'Μ', low:'μ', name:'mu',      tr:'m',  sound:'"m" as in mother', note:'' },
+  { up:'Ν', low:'ν', name:'nu',      tr:'n',  sound:'"n" as in new', note:'Lowercase ν looks like English v — another trap.' },
+  { up:'Ξ', low:'ξ', name:'xi',      tr:'x',  sound:'"x" as in axe', note:'' },
+  { up:'Ο', low:'ο', name:'omicron', tr:'o',  sound:'short "o" as in not', note:'Always short. Contrast with ω.' },
+  { up:'Π', low:'π', name:'pi',      tr:'p',  sound:'"p" as in peach', note:'' },
+  { up:'Ρ', low:'ρ', name:'rho',     tr:'r',  sound:'"r" as in rod (lightly rolled)', note:'Lowercase ρ looks like English p.' },
+  { up:'Σ', low:'σ / ς', name:'sigma', tr:'s', sound:'"s" as in study', note:'Written σ everywhere except at the end of a word, where it becomes ς: ἀπόστολος.' },
+  { up:'Τ', low:'τ', name:'tau',     tr:'t',  sound:'"t" as in talk', note:'' },
+  { up:'Υ', low:'υ', name:'upsilon', tr:'u/y',sound:'"u" as in German ü (round your lips)', note:'Transliterated y except in diphthongs (u).' },
+  { up:'Φ', low:'φ', name:'phi',     tr:'ph', sound:'"ph" as in phone', note:'' },
+  { up:'Χ', low:'χ', name:'chi',     tr:'ch', sound:'"ch" as in Scottish loch / German Bach', note:'Not "ch" as in church.' },
+  { up:'Ψ', low:'ψ', name:'psi',     tr:'ps', sound:'"ps" as in lips', note:'' },
+  { up:'Ω', low:'ω', name:'omega',   tr:'ō',  sound:'long "o" as in tone', note:'Always long. Contrast with ο.' },
+];
+
+/* ============================================================
+   Data: flashcards (word, gloss, type, approx NT frequency)
+============================================================ */
+const CARDS = [
+  { w:'ὁ, ἡ, τό', g:'the', t:'small', f:19865 },
+  { w:'καί', g:'and, even, also', t:'small', f:9018 },
+  { w:'αὐτός, -ή, -ό', g:'he, she, it; self, same', t:'small', f:5595 },
+  { w:'δέ', g:'but, and (never first in its clause)', t:'small', f:2792 },
+  { w:'ἐν', g:'in, among (+ dative)', t:'small', f:2752 },
+  { w:'εἰμί', g:'I am, exist', t:'verb', f:2462 },
+  { w:'λέγω', g:'I say, speak', t:'verb', f:2353 },
+  { w:'εἰς', g:'into, toward (+ accusative)', t:'small', f:1767 },
+  { w:'ἐγώ', g:'I', t:'small', f:1775 },
+  { w:'οὐ, οὐκ, οὐχ', g:'not (with indicative verbs)', t:'small', f:1606 },
+  { w:'ὅς, ἥ, ὅ', g:'who, which, that (relative)', t:'small', f:1365 },
+  { w:'θεός, -οῦ, ὁ', g:'God, god', t:'noun', f:1317 },
+  { w:'ὅτι', g:'that, because; opens a quotation', t:'small', f:1296 },
+  { w:'πᾶς, πᾶσα, πᾶν', g:'all, every, whole', t:'small', f:1244 },
+  { w:'σύ', g:'you (singular)', t:'small', f:1069 },
+  { w:'μή', g:'not (with non-indicative verbs)', t:'small', f:1042 },
+  { w:'γάρ', g:'for, because (never first in its clause)', t:'small', f:1041 },
+  { w:'Ἰησοῦς, -οῦ, ὁ', g:'Jesus, Joshua', t:'noun', f:917 },
+  { w:'ἐκ (ἐξ)', g:'out of, from (+ genitive)', t:'small', f:914 },
+  { w:'ἐπί', g:'on, upon, over', t:'small', f:890 },
+  { w:'κύριος, -ου, ὁ', g:'Lord, master, sir', t:'noun', f:717 },
+  { w:'ἔχω', g:'I have, hold', t:'verb', f:708 },
+  { w:'πρός', g:'to, toward, with (+ accusative)', t:'small', f:700 },
+  { w:'γίνομαι', g:'I become, happen, come into being', t:'verb', f:669 },
+  { w:'διά', g:'through (+ gen.); on account of (+ acc.)', t:'small', f:667 },
+  { w:'ἵνα', g:'in order that, so that', t:'small', f:663 },
+  { w:'ἀπό', g:'from, away from (+ genitive)', t:'small', f:646 },
+  { w:'ἀλλά', g:'but, rather (strong contrast)', t:'small', f:638 },
+  { w:'ἔρχομαι', g:'I come, go', t:'verb', f:634 },
+  { w:'ποιέω', g:'I do, make', t:'verb', f:568 },
+  { w:'τίς, τί', g:'who? what? which? (accented)', t:'small', f:555 },
+  { w:'ἄνθρωπος, -ου, ὁ', g:'man, human being, person', t:'noun', f:550 },
+  { w:'Χριστός, -οῦ, ὁ', g:'Christ, Messiah, Anointed One', t:'noun', f:529 },
+  { w:'τις, τι', g:'someone, something, a certain (unaccented)', t:'small', f:525 },
+  { w:'ὡς', g:'as, like, when', t:'small', f:504 },
+  { w:'εἰ', g:'if', t:'small', f:502 },
+  { w:'οὖν', g:'therefore, then', t:'small', f:498 },
+  { w:'κατά', g:'down from (+ gen.); according to (+ acc.)', t:'small', f:473 },
+  { w:'μετά', g:'with (+ gen.); after (+ acc.)', t:'small', f:469 },
+  { w:'ὁράω', g:'I see, perceive', t:'verb', f:454 },
+  { w:'ἀκούω', g:'I hear, listen, obey', t:'verb', f:428 },
+  { w:'πολύς, πολλή, πολύ', g:'much, many, great', t:'small', f:416 },
+  { w:'δίδωμι', g:'I give', t:'verb', f:415 },
+  { w:'πατήρ, πατρός, ὁ', g:'father', t:'noun', f:413 },
+  { w:'ἡμέρα, -ας, ἡ', g:'day', t:'noun', f:389 },
+  { w:'πνεῦμα, -ατος, τό', g:'spirit, Spirit, wind, breath', t:'noun', f:379 },
+  { w:'υἱός, -οῦ, ὁ', g:'son, descendant', t:'noun', f:377 },
+  { w:'ἀδελφός, -οῦ, ὁ', g:'brother', t:'noun', f:343 },
+  { w:'λόγος, -ου, ὁ', g:'word, message, account', t:'noun', f:330 },
+  { w:'οὐρανός, -οῦ, ὁ', g:'heaven, sky', t:'noun', f:273 },
+  { w:'πιστεύω', g:'I believe, trust (+ dative)', t:'verb', f:241 },
+  { w:'γράφω', g:'I write', t:'verb', f:191 },
+  { w:'κόσμος, -ου, ὁ', g:'world, universe; adornment', t:'noun', f:186 },
+  { w:'ἁμαρτία, -ας, ἡ', g:'sin', t:'noun', f:173 },
+  { w:'καρδία, -ας, ἡ', g:'heart (the inner self)', t:'noun', f:156 },
+  { w:'ἀγαπάω', g:'I love', t:'verb', f:143 },
+  { w:'ζωή, -ῆς, ἡ', g:'life', t:'noun', f:135 },
+  { w:'ἀγάπη, -ης, ἡ', g:'love', t:'noun', f:116 },
+  { w:'φῶς, φωτός, τό', g:'light', t:'noun', f:73 },
+  { w:'ἀρχή, -ῆς, ἡ', g:'beginning, ruler, authority', t:'noun', f:55 },
+];
+
+/* ============================================================
+   Data: John 1:1–5 interlinear
+============================================================ */
+const JOHN = [
+  { v:1, words:[
+    ['Ἐν','en','in — preposition + dative'],
+    ['ἀρχῇ','archē','beginning — dative singular of ἀρχή; "in (the) beginning." Greek often drops the article where English needs it.'],
+    ['ἦν','ēn','was — imperfect of εἰμί (I am), 3rd singular. Continuous past: "was existing."'],
+    ['ὁ','ho','the — nominative masculine article'],
+    ['λόγος,','logos','Word — nominative singular of λόγος. The subject of the clause.'],
+    ['καὶ','kai','and'],
+    ['ὁ','ho','the'],
+    ['λόγος','logos','Word — again the subject'],
+    ['ἦν','ēn','was'],
+    ['πρὸς','pros','with, toward — + accusative. Face-to-face relationship, not mere location.'],
+    ['τὸν','ton','the — accusative masculine article'],
+    ['θεόν,','theon','God — accusative singular of θεός, object of πρός'],
+    ['καὶ','kai','and'],
+    ['θεὸς','theos','God — nominative, but WITHOUT the article: the predicate. It states what the Word was.'],
+    ['ἦν','ēn','was'],
+    ['ὁ','ho','the'],
+    ['λόγος.','logos','Word — with the article, so it is the subject even though it comes last: "and the Word was God."'],
+  ]},
+  { v:2, words:[
+    ['οὗτος','houtos','this one, he — demonstrative pronoun, pointing back to the Word'],
+    ['ἦν','ēn','was'],
+    ['ἐν','en','in'],
+    ['ἀρχῇ','archē','beginning'],
+    ['πρὸς','pros','with'],
+    ['τὸν','ton','the'],
+    ['θεόν.','theon','God'],
+  ]},
+  { v:3, words:[
+    ['πάντα','panta','all things — neuter plural of πᾶς, subject'],
+    ['δι᾽','di’','through — διά elided before a vowel, + genitive'],
+    ['αὐτοῦ','autou','him — genitive of αὐτός'],
+    ['ἐγένετο,','egeneto','came into being — aorist of γίνομαι, 3rd singular. A completed event, contrasting with the ongoing ἦν of v. 1.'],
+    ['καὶ','kai','and'],
+    ['χωρὶς','chōris','apart from, without — + genitive'],
+    ['αὐτοῦ','autou','him'],
+    ['ἐγένετο','egeneto','came into being'],
+    ['οὐδὲ','oude','not even'],
+    ['ἕν','hen','one thing — neuter of εἷς (one)'],
+    ['ὃ','ho','which — relative pronoun'],
+    ['γέγονεν.','gegonen','has come into being — perfect of γίνομαι: a past event with continuing result'],
+  ]},
+  { v:4, words:[
+    ['ἐν','en','in'],
+    ['αὐτῷ','autō','him — dative of αὐτός'],
+    ['ζωὴ','zōē','life — nominative singular, subject'],
+    ['ἦν,','ēn','was'],
+    ['καὶ','kai','and'],
+    ['ἡ','hē','the — nominative feminine article'],
+    ['ζωὴ','zōē','life'],
+    ['ἦν','ēn','was'],
+    ['τὸ','to','the — nominative/accusative neuter article'],
+    ['φῶς','phōs','light — neuter noun, predicate: "the life was the light"'],
+    ['τῶν','tōn','of the — genitive plural article'],
+    ['ἀνθρώπων·','anthrōpōn','of men, of humanity — genitive plural of ἄνθρωπος'],
+  ]},
+  { v:5, words:[
+    ['καὶ','kai','and'],
+    ['τὸ','to','the'],
+    ['φῶς','phōs','light — subject'],
+    ['ἐν','en','in'],
+    ['τῇ','tē','the — dative feminine article'],
+    ['σκοτίᾳ','skotia','darkness — dative of σκοτία'],
+    ['φαίνει,','phainei','shines — present tense, 3rd singular: it keeps on shining'],
+    ['καὶ','kai','and'],
+    ['ἡ','hē','the'],
+    ['σκοτία','skotia','darkness — subject'],
+    ['αὐτὸ','auto','it — accusative neuter, referring to the light'],
+    ['οὐ','ou','not'],
+    ['κατέλαβεν.','katelaben','overcame / comprehended — aorist of καταλαμβάνω, famously ambiguous: to seize, overtake, or grasp with the mind'],
+  ]},
+];
+
+/* ============================================================
+   Lessons
+============================================================ */
+const LESSONS = [
+  {
+    id: 'alphabet', glyph: 'α', title: 'The Alphabet',
+    blurb: '24 letters, their names, and how to say them.',
+    body: () => `
+      <p>Biblical Greek — usually called <em>Koine</em> ("common") Greek — was the everyday language of the
+      eastern Mediterranean from roughly 300 BC to AD 300, and the language of the entire New Testament.
+      Everything begins with its 24 letters.</p>
+      <p><strong>Tap each letter</strong> to see its name, sound, and any warnings. Your first goal is simple:
+      say the alphabet aloud, in order, from memory. It usually takes two or three days of short practice.</p>
+      ${letterGridHTML()}
+      <div id="letter-detail"></div>
+      <h3>The three classic traps</h3>
+      <ul>
+        <li><span class="gk">η</span> (eta) looks like an English <em>n</em> — but it is a long <em>e</em>.</li>
+        <li><span class="gk">ν</span> (nu) looks like an English <em>v</em> — but it is <em>n</em>.</li>
+        <li><span class="gk">ρ</span> (rho) looks like an English <em>p</em> — but it is <em>r</em>.</li>
+      </ul>
+      <div class="callout"><strong>Study habit.</strong> Write each letter by hand ten times while saying its name
+      and sound aloud. Reading, hearing, and writing together fix letters in memory far faster than reading alone.</div>
+      <h3>Vowels, long and short</h3>
+      <p>Greek has seven vowels: <span class="gk">α ε η ι ο υ ω</span>.
+      Two pairs matter constantly: <span class="gk">ε</span> is always short and <span class="gk">η</span> always long
+      (both are "e"), while <span class="gk">ο</span> is always short and <span class="gk">ω</span> always long (both are "o").
+      <span class="gk">α ι υ</span> can be either.</p>`,
+    quiz: [
+      { q:'Which letter is <span class="gk">η</span>?', a:'eta — long "e"', wrong:['nu — "n"','epsilon — short "e"','iota — "i"'] },
+      { q:'What sound does <span class="gk">θ</span> (theta) make?', a:'"th" as in think', wrong:['"t" as in talk','"d" as in dog','"f" as in fun'] },
+      { q:'When is sigma written <span class="gk">ς</span> instead of <span class="gk">σ</span>?', a:'At the end of a word', wrong:['At the start of a word','Before a vowel','In capital letters'] },
+      { q:'Which pair is short-vowel / long-vowel of the same sound?', a:'<span class="gk">ο</span> and <span class="gk">ω</span>', wrong:['<span class="gk">α</span> and <span class="gk">ε</span>','<span class="gk">ι</span> and <span class="gk">η</span>','<span class="gk">υ</span> and <span class="gk">ο</span>'] },
+      { q:'In <span class="gk">ἄγγελος</span> (angel), the first <span class="gk">γ</span> is pronounced…', a:'"n" — gamma before gamma sounds like n', wrong:['hard "g" as usual','"j" as in judge','it is silent'] },
+    ],
+  },
+  {
+    id: 'marks', glyph: '῾', title: 'Breathing Marks, Accents & Diphthongs',
+    blurb: 'The small marks that hover over Greek words.',
+    body: () => `
+      <p>Open any Greek New Testament and you'll see small marks floating above the letters. They look
+      intimidating; they aren't. There are only three kinds.</p>
+      <h3>1. Breathing marks — the ones that matter most</h3>
+      <p>Every word that <em>begins with a vowel</em> carries a breathing mark on that vowel:</p>
+      <ul>
+        <li><strong>Rough breathing</strong> <span class="gk">( ῾ )</span> — add an <em>h</em> sound:
+          <span class="gk">ὁ</span> = <em>ho</em>, <span class="gk">υἱός</span> = <em>huios</em>.</li>
+        <li><strong>Smooth breathing</strong> <span class="gk">( ᾿ )</span> — no <em>h</em>, just the vowel:
+          <span class="gk">ἐν</span> = <em>en</em>, <span class="gk">ἀρχή</span> = <em>archē</em>.</li>
+      </ul>
+      <p>Initial <span class="gk">ρ</span> and <span class="gk">υ</span> always take rough breathing —
+      which is why English got "rhetoric" and "hymn."</p>
+      <h3>2. Accents — just recognize them</h3>
+      <p>Three accents mark the stressed syllable: acute <span class="gk">( ´ )</span> as in <span class="gk">λόγος</span>,
+      grave <span class="gk">( &#96; )</span> as in <span class="gk">καὶ</span>, and circumflex <span class="gk">( ῀ )</span>
+      as in <span class="gk">φῶς</span>. For now, all three mean the same thing to you:
+      <em>stress this syllable</em>. Occasionally an accent distinguishes two otherwise identical words
+      (<span class="gk">τίς</span> "who?" vs. <span class="gk">τις</span> "someone") — you'll meet those as vocabulary.</p>
+      <h3>3. The iota subscript</h3>
+      <p>A tiny iota tucked under <span class="gk">ᾳ ῃ ῳ</span>, as in <span class="gk">ἀρχῇ</span>.
+      It is silent, but it changes the word's grammatical form — it usually signals the <em>dative</em> case,
+      which you'll learn soon. Train your eye to notice it.</p>
+      <h3>Diphthongs — two vowels, one sound</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Diphthong</th><th>Sounds like</th><th>Example</th></tr>
+        <tr><td class="gk">αι</td><td>"ai" in aisle</td><td class="gk">καί <span class="gloss">(and)</span></td></tr>
+        <tr><td class="gk">ει</td><td>"ei" in eight</td><td class="gk">εἰ <span class="gloss">(if)</span></td></tr>
+        <tr><td class="gk">οι</td><td>"oi" in oil</td><td class="gk">οἰκία <span class="gloss">(house)</span></td></tr>
+        <tr><td class="gk">υι</td><td>"uee" in queen</td><td class="gk">υἱός <span class="gloss">(son)</span></td></tr>
+        <tr><td class="gk">αυ</td><td>"ow" in cow</td><td class="gk">αὐτός <span class="gloss">(he)</span></td></tr>
+        <tr><td class="gk">ευ</td><td>"eu" in feud</td><td class="gk">εὐαγγέλιον <span class="gloss">(gospel)</span></td></tr>
+        <tr><td class="gk">ου</td><td>"oo" in food</td><td class="gk">οὐρανός <span class="gloss">(heaven)</span></td></tr>
+      </table></div>
+      <h3>Punctuation</h3>
+      <p>Comma and period work as in English. Two are new: the raised dot <span class="gk">( · )</span> is a
+      colon or semicolon, and the Greek semicolon <span class="gk">( ; )</span> is a <strong>question mark</strong>.</p>
+      <div class="callout"><strong>Practice.</strong> Sound out these real NT words:
+      <span class="gk">ἀπόστολος</span> (apostolos), <span class="gk">εὐαγγέλιον</span> (euangelion),
+      <span class="gk">ἁμαρτία</span> (hamartia — rough breathing!), <span class="gk">οὐρανός</span> (ouranos).</div>`,
+    quiz: [
+      { q:'What does rough breathing <span class="gk">( ῾ )</span> add to a word?', a:'An "h" sound at the start', wrong:['A pause','Stress on that syllable','Nothing — it is decorative'] },
+      { q:'How is <span class="gk">υἱός</span> (son) pronounced?', a:'huios — rough breathing gives "h"', wrong:['uios — no "h"','wios','vios'] },
+      { q:'The diphthong <span class="gk">ου</span> sounds like…', a:'"oo" as in food', wrong:['"ow" as in cow','"oi" as in oil','"you"'] },
+      { q:'In Greek, the symbol <span class="gk">;</span> is…', a:'A question mark', wrong:['A semicolon','A period','A quotation mark'] },
+      { q:'The iota subscript (as in <span class="gk">ἀρχῇ</span>)…', a:'Is silent but signals a grammatical form', wrong:['Is pronounced "yi"','Marks a question','Shows the word is a name'] },
+    ],
+  },
+  {
+    id: 'article', glyph: 'ὁ', title: 'The Article & Your First Words',
+    blurb: 'Gender, and the little word that unlocks everything.',
+    body: () => `
+      <p>Greek's most common word — nearly 20,000 times in the New Testament — is the article,
+      "the." Unlike English, it changes form to match its noun, and those changing forms are a
+      <em>gift</em>: once you know the article, it labels the gender, number, and case of the noun
+      next to it, like a little grammatical name-tag.</p>
+      <h3>Gender</h3>
+      <p>Every Greek noun has a grammatical gender — masculine, feminine, or neuter. It's grammar,
+      not biology: <span class="gk">κόσμος</span> (world) is masculine, <span class="gk">καρδία</span> (heart)
+      is feminine, <span class="gk">πνεῦμα</span> (spirit) is neuter. Learn every noun <em>with its article</em>:
+      not "λόγος = word" but "<span class="gk">ὁ λόγος</span> = the word."</p>
+      <h3>The article in the nominative (dictionary) form</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th></th><th>Masculine</th><th>Feminine</th><th>Neuter</th></tr>
+        <tr><td>Singular</td><td class="gk">ὁ</td><td class="gk">ἡ</td><td class="gk">τό</td></tr>
+        <tr><td>Plural</td><td class="gk">οἱ</td><td class="gk">αἱ</td><td class="gk">τά</td></tr>
+      </table></div>
+      <h3>Your first ten words</h3>
+      <p>These alone account for a huge share of the New Testament. Say each aloud.</p>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Greek</th><th>Meaning</th><th>NT count</th></tr>
+        <tr><td class="gk">ὁ, ἡ, τό</td><td>the</td><td>≈19,865</td></tr>
+        <tr><td class="gk">καί</td><td>and, even, also</td><td>≈9,018</td></tr>
+        <tr><td class="gk">αὐτός</td><td>he, she, it; self</td><td>≈5,595</td></tr>
+        <tr><td class="gk">δέ</td><td>but, and</td><td>≈2,792</td></tr>
+        <tr><td class="gk">ἐν</td><td>in</td><td>≈2,752</td></tr>
+        <tr><td class="gk">εἰμί</td><td>I am</td><td>≈2,462</td></tr>
+        <tr><td class="gk">λέγω</td><td>I say</td><td>≈2,353</td></tr>
+        <tr><td class="gk">εἰς</td><td>into</td><td>≈1,767</td></tr>
+        <tr><td class="gk">οὐ</td><td>not</td><td>≈1,606</td></tr>
+        <tr><td class="gk">θεός</td><td>God</td><td>≈1,317</td></tr>
+      </table></div>
+      <div class="callout"><strong>From here on:</strong> spend a few minutes in the
+      <strong>Flashcards</strong> tab every single day. Frequency-first vocabulary is the single
+      highest-leverage habit in learning New Testament Greek — the 300 most common words cover
+      about 80% of the text.</div>`,
+    quiz: [
+      { q:'<span class="gk">ἡ</span> is the article for which gender?', a:'Feminine singular', wrong:['Masculine singular','Neuter singular','Feminine plural'] },
+      { q:'"The word" with the correct article is…', a:'<span class="gk">ὁ λόγος</span>', wrong:['<span class="gk">ἡ λόγος</span>','<span class="gk">τό λόγος</span>','<span class="gk">οἱ λόγος</span>'] },
+      { q:'What does <span class="gk">καί</span> mean?', a:'and, even, also', wrong:['but','in','not'] },
+      { q:'Which is the neuter plural article?', a:'<span class="gk">τά</span>', wrong:['<span class="gk">οἱ</span>','<span class="gk">αἱ</span>','<span class="gk">τό</span>'] },
+      { q:'Grammatical gender in Greek…', a:'Belongs to the noun itself, regardless of biology', wrong:['Only applies to people','Changes with the sentence','Does not exist in Koine'] },
+    ],
+  },
+  {
+    id: 'cases', glyph: 'ος', title: 'Cases & the Second Declension',
+    blurb: 'Why word endings, not word order, carry the meaning.',
+    body: () => `
+      <p>Here is the single biggest idea in Greek grammar: <strong>the job a noun does in its sentence
+      is shown by its ending, not by its position.</strong> English says "God loves the world" and
+      "the world loves God" mean different things because of word order. Greek instead changes the
+      ends of the words, and can then order them almost freely — for emphasis, rhythm, or art.</p>
+      <h3>The four main cases</h3>
+      <ul>
+        <li><strong>Nominative</strong> — the subject. <em>The <u>word</u> was in the beginning.</em></li>
+        <li><strong>Genitive</strong> — possession or source; usually "of." <em>The word <u>of God</u>.</em></li>
+        <li><strong>Dative</strong> — indirect object, location, instrument; often "to / for / in / with." <em>He spoke <u>to the crowd</u>.</em></li>
+        <li><strong>Accusative</strong> — the direct object. <em>God loved <u>the world</u>.</em></li>
+      </ul>
+      <p>(A fifth, the <strong>vocative</strong>, is for direct address — <span class="gk">κύριε</span>, "O Lord!" — and is rare enough to learn as you meet it.)</p>
+      <h3>Second declension: <span class="gk">ὁ λόγος</span> (the word)</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Case</th><th>Singular</th><th>Plural</th><th>Signals</th></tr>
+        <tr><td>Nominative</td><td class="gk">ὁ λόγος</td><td class="gk">οἱ λόγοι</td><td>subject</td></tr>
+        <tr><td>Genitive</td><td class="gk">τοῦ λόγου</td><td class="gk">τῶν λόγων</td><td>"of"</td></tr>
+        <tr><td>Dative</td><td class="gk">τῷ λόγῳ</td><td class="gk">τοῖς λόγοις</td><td>"to/for/in"</td></tr>
+        <tr><td>Accusative</td><td class="gk">τὸν λόγον</td><td class="gk">τοὺς λόγους</td><td>object</td></tr>
+      </table></div>
+      <p>Notice the iota subscripts in the dative singular (<span class="gk">τῷ λόγῳ</span>) — this is
+      where that silent little iota earns its keep.</p>
+      <h3>Neuter second declension: <span class="gk">τὸ ἔργον</span> (the work)</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Case</th><th>Singular</th><th>Plural</th></tr>
+        <tr><td>Nominative</td><td class="gk">τὸ ἔργον</td><td class="gk">τὰ ἔργα</td></tr>
+        <tr><td>Genitive</td><td class="gk">τοῦ ἔργου</td><td class="gk">τῶν ἔργων</td></tr>
+        <tr><td>Dative</td><td class="gk">τῷ ἔργῳ</td><td class="gk">τοῖς ἔργοις</td></tr>
+        <tr><td>Accusative</td><td class="gk">τὸ ἔργον</td><td class="gk">τὰ ἔργα</td></tr>
+      </table></div>
+      <p>Neuter rule worth memorizing now: <strong>nominative and accusative are always identical</strong> in neuter words.</p>
+      <h3>See it work</h3>
+      <p><span class="gk">ὁ θεὸς λέγει τὸν λόγον</span> — "God speaks the word."
+      <span class="gk">ὁ θεός</span> is nominative (subject); <span class="gk">τὸν λόγον</span> is accusative (object).
+      Reorder it — <span class="gk">τὸν λόγον λέγει ὁ θεός</span> — and it still means exactly the same thing,
+      now with emphasis on <em>the word</em>.</p>`,
+    quiz: [
+      { q:'Which case marks the subject of a sentence?', a:'Nominative', wrong:['Genitive','Dative','Accusative'] },
+      { q:'<span class="gk">τοῦ λόγου</span> means…', a:'of the word', wrong:['to the word','the word (subject)','the words'] },
+      { q:'In <span class="gk">ὁ θεὸς λέγει τὸν λόγον</span>, what is the direct object?', a:'<span class="gk">τὸν λόγον</span>', wrong:['<span class="gk">ὁ θεός</span>','<span class="gk">λέγει</span>','There is no object'] },
+      { q:'How does Greek mainly show a noun’s role in the sentence?', a:'By its case ending', wrong:['By word order','By capitalization','By an extra particle'] },
+      { q:'For neuter nouns like <span class="gk">ἔργον</span>…', a:'Nominative and accusative are always identical', wrong:['Genitive and dative are identical','There is no plural','The article never appears'] },
+    ],
+  },
+  {
+    id: 'firstdecl', glyph: 'ἡ', title: 'The First Declension',
+    blurb: 'Feminine nouns: beginning, day, heart, love.',
+    body: () => `
+      <p>The first declension covers most feminine nouns. The endings will look familiar — they rhyme
+      with the feminine article. There are two main flavors, depending on whether the stem keeps
+      <span class="gk">η</span> or <span class="gk">α</span>.</p>
+      <h3>The eta pattern: <span class="gk">ἡ ἀρχή</span> (the beginning)</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Case</th><th>Singular</th><th>Plural</th></tr>
+        <tr><td>Nominative</td><td class="gk">ἡ ἀρχή</td><td class="gk">αἱ ἀρχαί</td></tr>
+        <tr><td>Genitive</td><td class="gk">τῆς ἀρχῆς</td><td class="gk">τῶν ἀρχῶν</td></tr>
+        <tr><td>Dative</td><td class="gk">τῇ ἀρχῇ</td><td class="gk">ταῖς ἀρχαῖς</td></tr>
+        <tr><td>Accusative</td><td class="gk">τὴν ἀρχήν</td><td class="gk">τὰς ἀρχάς</td></tr>
+      </table></div>
+      <p>Now John 1:1's opening phrase is fully transparent: <span class="gk">ἐν ἀρχῇ</span> —
+      <span class="gk">ἐν</span> takes the dative, and <span class="gk">ἀρχῇ</span> (note the iota subscript)
+      is exactly the dative singular. "In the beginning."</p>
+      <h3>The alpha pattern: <span class="gk">ἡ καρδία</span> (the heart)</h3>
+      <p>When the stem ends in <span class="gk">ε, ι,</span> or <span class="gk">ρ</span>, alpha stays throughout:</p>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Case</th><th>Singular</th><th>Plural</th></tr>
+        <tr><td>Nominative</td><td class="gk">ἡ καρδία</td><td class="gk">αἱ καρδίαι</td></tr>
+        <tr><td>Genitive</td><td class="gk">τῆς καρδίας</td><td class="gk">τῶν καρδιῶν</td></tr>
+        <tr><td>Dative</td><td class="gk">τῇ καρδίᾳ</td><td class="gk">ταῖς καρδίαις</td></tr>
+        <tr><td>Accusative</td><td class="gk">τὴν καρδίαν</td><td class="gk">τὰς καρδίας</td></tr>
+      </table></div>
+      <div class="callout"><strong>Don't memorize tables raw.</strong> Memorize the <em>article</em> —
+      <span class="gk">ἡ, τῆς, τῇ, τήν / αἱ, τῶν, ταῖς, τάς</span> — and the noun endings follow along.
+      The article is the skeleton key to every declension.</div>
+      <h3>Useful first-declension vocabulary</h3>
+      <ul>
+        <li><span class="gk">ἡ ἀγάπη</span> — love</li>
+        <li><span class="gk">ἡ ζωή</span> — life</li>
+        <li><span class="gk">ἡ ἡμέρα</span> — day</li>
+        <li><span class="gk">ἡ ἁμαρτία</span> — sin</li>
+        <li><span class="gk">ἡ βασιλεία</span> — kingdom</li>
+        <li><span class="gk">ἡ δόξα</span> — glory</li>
+      </ul>`,
+    quiz: [
+      { q:'<span class="gk">ἐν ἀρχῇ</span> is dative because…', a:'<span class="gk">ἐν</span> takes the dative case', wrong:['It is the subject','All feminine nouns are dative','It is a direct quote'] },
+      { q:'"Of the heart" is…', a:'<span class="gk">τῆς καρδίας</span>', wrong:['<span class="gk">τῇ καρδίᾳ</span>','<span class="gk">τὴν καρδίαν</span>','<span class="gk">ἡ καρδία</span>'] },
+      { q:'The feminine genitive singular article is…', a:'<span class="gk">τῆς</span>', wrong:['<span class="gk">τοῦ</span>','<span class="gk">τῇ</span>','<span class="gk">τῶν</span>'] },
+      { q:'<span class="gk">ἡ ζωή</span> means…', a:'life', wrong:['love','day','glory'] },
+      { q:'"He speaks to the heart" — which form of heart?', a:'<span class="gk">τῇ καρδίᾳ</span> (dative)', wrong:['<span class="gk">ἡ καρδία</span> (nominative)','<span class="gk">τὴν καρδίαν</span> (accusative)','<span class="gk">τῆς καρδίας</span> (genitive)'] },
+    ],
+  },
+  {
+    id: 'verbs', glyph: 'ω', title: 'Present Active Verbs & εἰμί',
+    blurb: 'One verb form contains subject, tense, and voice.',
+    body: () => `
+      <p>A Greek verb is a marvel of compression. <span class="gk">λύομεν</span> is a complete sentence:
+      "we are loosing." The ending <span class="gk">-ομεν</span> says <em>who</em> (we), the stem says
+      <em>what</em> (loose), and the form says <em>when and how</em> (present, ongoing, active).
+      Pronouns like <span class="gk">ἐγώ</span> appear only for emphasis.</p>
+      <h3>Present active indicative: <span class="gk">λύω</span> (I loose, untie)</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Person</th><th>Singular</th><th>Plural</th></tr>
+        <tr><td>1st</td><td class="gk">λύω <span class="gloss">I loose</span></td><td class="gk">λύομεν <span class="gloss">we loose</span></td></tr>
+        <tr><td>2nd</td><td class="gk">λύεις <span class="gloss">you loose</span></td><td class="gk">λύετε <span class="gloss">you all loose</span></td></tr>
+        <tr><td>3rd</td><td class="gk">λύει <span class="gloss">he/she/it looses</span></td><td class="gk">λύουσι(ν) <span class="gloss">they loose</span></td></tr>
+      </table></div>
+      <p>Chant it: <span class="gk">ω, εις, ει, ομεν, ετε, ουσι</span>. These six endings unlock
+      thousands of verbs: <span class="gk">λέγω / λέγεις / λέγει…</span> (say),
+      <span class="gk">ἔχω / ἔχεις / ἔχει…</span> (have),
+      <span class="gk">πιστεύω / πιστεύεις / πιστεύει…</span> (believe).</p>
+      <p>The Greek present is naturally <em>continuous</em>: <span class="gk">λέγει</span> can mean
+      "he says" or "he is saying."</p>
+      <h3>The verb "to be": <span class="gk">εἰμί</span></h3>
+      <p>Like English "to be," it is common and irregular — worth memorizing outright:</p>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Person</th><th>Singular</th><th>Plural</th></tr>
+        <tr><td>1st</td><td class="gk">εἰμί <span class="gloss">I am</span></td><td class="gk">ἐσμέν <span class="gloss">we are</span></td></tr>
+        <tr><td>2nd</td><td class="gk">εἶ <span class="gloss">you are</span></td><td class="gk">ἐστέ <span class="gloss">you all are</span></td></tr>
+        <tr><td>3rd</td><td class="gk">ἐστί(ν) <span class="gloss">he/she/it is</span></td><td class="gk">εἰσί(ν) <span class="gloss">they are</span></td></tr>
+      </table></div>
+      <p>And its past ("was"): <span class="gk">ἦν</span> — the very verb that appears three times in John 1:1.</p>
+      <h3>Saying "not"</h3>
+      <p>Put <span class="gk">οὐ</span> before the verb: <span class="gk">οὐ λέγει</span>, "he does not say."
+      (It becomes <span class="gk">οὐκ</span> before a smooth-breathing vowel and <span class="gk">οὐχ</span> before a rough one.)</p>
+      <h3>Read these — you can now</h3>
+      <ul>
+        <li><span class="gk">λέγει τὸν λόγον.</span> <span class="gloss">He speaks the word.</span></li>
+        <li><span class="gk">ἔχομεν ζωήν.</span> <span class="gloss">We have life.</span></li>
+        <li><span class="gk">ὁ θεὸς ἀγάπη ἐστίν.</span> <span class="gloss">God is love. (1 John 4:8)</span></li>
+        <li><span class="gk">πιστεύεις;</span> <span class="gloss">Do you believe?</span></li>
+      </ul>`,
+    quiz: [
+      { q:'<span class="gk">λύομεν</span> means…', a:'we loose', wrong:['I loose','they loose','you loose'] },
+      { q:'Which ending marks "they" (3rd plural)?', a:'<span class="gk">-ουσι(ν)</span>', wrong:['<span class="gk">-ομεν</span>','<span class="gk">-εις</span>','<span class="gk">-ετε</span>'] },
+      { q:'<span class="gk">ἐστίν</span> means…', a:'he/she/it is', wrong:['I am','they are','you are'] },
+      { q:'<span class="gk">ἦν</span>, appearing three times in John 1:1, means…', a:'was', wrong:['is','will be','became'] },
+      { q:'<span class="gk">οὐ πιστεύουσιν</span> means…', a:'they do not believe', wrong:['we do not believe','he believes','do you believe?'] },
+    ],
+  },
+  {
+    id: 'preps', glyph: 'ἐν', title: 'Prepositions & Connecting Words',
+    blurb: 'The mortar between the bricks.',
+    body: () => `
+      <p>Greek sentences are held together by tiny, ultra-frequent words. Master this handful and
+      whole verses begin to open up.</p>
+      <h3>Core prepositions</h3>
+      <p>Each preposition governs a case — and some change meaning with the case they take:</p>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Preposition</th><th>With case</th><th>Meaning</th><th>Example</th></tr>
+        <tr><td class="gk">ἐν</td><td>dative</td><td>in, among</td><td class="gk">ἐν ἀρχῇ <span class="gloss">in the beginning</span></td></tr>
+        <tr><td class="gk">εἰς</td><td>accusative</td><td>into, toward</td><td class="gk">εἰς τὸν κόσμον <span class="gloss">into the world</span></td></tr>
+        <tr><td class="gk">ἐκ / ἐξ</td><td>genitive</td><td>out of, from</td><td class="gk">ἐκ τοῦ κόσμου <span class="gloss">out of the world</span></td></tr>
+        <tr><td class="gk">πρός</td><td>accusative</td><td>to, toward, with</td><td class="gk">πρὸς τὸν θεόν <span class="gloss">with God</span></td></tr>
+        <tr><td class="gk">ἀπό</td><td>genitive</td><td>from, away from</td><td class="gk">ἀπὸ τοῦ θεοῦ <span class="gloss">from God</span></td></tr>
+        <tr><td class="gk">διά</td><td>genitive</td><td>through</td><td class="gk">δι᾽ αὐτοῦ <span class="gloss">through him</span></td></tr>
+        <tr><td class="gk">διά</td><td>accusative</td><td>because of</td><td class="gk">διὰ τοῦτο <span class="gloss">for this reason</span></td></tr>
+        <tr><td class="gk">μετά</td><td>genitive</td><td>with</td><td class="gk">μεθ᾽ ὑμῶν <span class="gloss">with you</span></td></tr>
+        <tr><td class="gk">κατά</td><td>accusative</td><td>according to</td><td class="gk">κατὰ Ἰωάννην <span class="gloss">according to John</span></td></tr>
+      </table></div>
+      <div class="callout"><strong>Spatial memory trick.</strong> Picture a circle:
+      <span class="gk">εἰς</span> is an arrow going <em>in</em>, <span class="gk">ἐν</span> is a dot resting
+      <em>inside</em>, <span class="gk">ἐκ</span> is an arrow coming <em>out</em>,
+      <span class="gk">πρός</span> is an arrow approaching the edge.</div>
+      <h3>Conjunctions & particles</h3>
+      <ul>
+        <li><span class="gk">καί</span> — and, even, also. <span class="gk">καί … καί</span> = "both … and."</li>
+        <li><span class="gk">δέ</span> — but/and, gentle contrast. <strong>Postpositive</strong>: it can never stand first
+          in its clause. <span class="gk">ὁ δὲ λέγει…</span> = "But he says…"</li>
+        <li><span class="gk">γάρ</span> — for, because. Also postpositive: <span class="gk">λέγει γάρ…</span> = "for he says…"</li>
+        <li><span class="gk">ἀλλά</span> — but (sharp contrast).</li>
+        <li><span class="gk">οὖν</span> — therefore, so then.</li>
+        <li><span class="gk">ὅτι</span> — that, because; also opens direct quotes, like a spoken colon.</li>
+      </ul>
+      <h3>Put it together</h3>
+      <ul>
+        <li><span class="gk">ὁ λόγος ἦν πρὸς τὸν θεόν.</span> <span class="gloss">The word was with God.</span></li>
+        <li><span class="gk">λέγομεν δὲ τὴν ἀλήθειαν.</span> <span class="gloss">But we speak the truth.</span></li>
+        <li><span class="gk">ἐκ τῆς καρδίας λέγει.</span> <span class="gloss">He speaks from the heart.</span></li>
+      </ul>`,
+    quiz: [
+      { q:'<span class="gk">εἰς</span> + accusative means…', a:'into, toward', wrong:['out of','in, resting within','with'] },
+      { q:'<span class="gk">διά</span> with the genitive means…', a:'through', wrong:['because of','against','after'] },
+      { q:'Why can <span class="gk">δέ</span> never start a clause?', a:'It is postpositive — it stands second', wrong:['It is too emphatic','It only follows verbs','It is a suffix'] },
+      { q:'<span class="gk">ἐκ τοῦ κόσμου</span> means…', a:'out of the world', wrong:['into the world','with the world','because of the world'] },
+      { q:'<span class="gk">ὅτι</span> commonly introduces…', a:'A quotation or a "that/because" clause', wrong:['A question','A command','A list'] },
+    ],
+  },
+  {
+    id: 'john', glyph: 'Ἰω', title: 'Reading John 1:1–5',
+    blurb: 'Real scripture, word by word — you are ready.',
+    body: () => `
+      <p>This is the moment the previous seven lessons were building toward: the opening of John's
+      Gospel, in the original, read with your own eyes. <strong>Tap any word</strong> for its
+      pronunciation and grammar. Read each verse aloud first, then work through the words.</p>
+      ${interlinearHTML()}
+      <h3>What only the Greek shows you</h3>
+      <p><strong>The famous third clause.</strong> <span class="gk">καὶ θεὸς ἦν ὁ λόγος</span> — literally
+      "and God was the Word." How do we know it means "the Word was God" and not "God was the Word"?
+      The article: <span class="gk">ὁ λόγος</span> has it, <span class="gk">θεός</span> doesn't, so
+      <span class="gk">ὁ λόγος</span> is the subject and <span class="gk">θεός</span> the predicate —
+      regardless of word order. John fronts <span class="gk">θεός</span> for emphasis. This is case
+      grammar doing real theological work.</p>
+      <p><strong>Two verbs of being.</strong> John alternates <span class="gk">ἦν</span> ("was" — continuous,
+      no beginning in view) for the Word, with <span class="gk">ἐγένετο</span> ("came into being" — an event)
+      for everything created. The grammar itself draws the line between the eternal and the made.</p>
+      <p><strong>A deliberate double meaning.</strong> In v. 5, <span class="gk">κατέλαβεν</span> can mean
+      "overcame" or "comprehended." Did the darkness fail to <em>extinguish</em> the light, or fail to
+      <em>understand</em> it? Most translators must choose; John may well have meant both.</p>
+      <div class="callout"><strong>Assignment.</strong> Read all five verses aloud three days in a row.
+      By the third day, read without tapping any glosses. When these five verses feel like an old
+      friend, you have crossed the line from studying Greek to <em>reading</em> Greek.</div>`,
+    quiz: [
+      { q:'In <span class="gk">καὶ θεὸς ἦν ὁ λόγος</span>, how do we know "the Word" is the subject?', a:'It has the article; <span class="gk">θεός</span> does not', wrong:['It comes first in the clause','It is capitalized','The verb agrees only with it'] },
+      { q:'<span class="gk">ἐγένετο</span> differs from <span class="gk">ἦν</span> because it means…', a:'came into being (an event), not "was" (a state)', wrong:['will be','is continually','was not'] },
+      { q:'<span class="gk">πάντα δι᾽ αὐτοῦ ἐγένετο</span> means…', a:'All things came into being through him', wrong:['He made all things for himself','All things were with him','Everything belongs to him'] },
+      { q:'<span class="gk">ἡ σκοτία αὐτὸ οὐ κατέλαβεν</span> — <span class="gk">κατέλαβεν</span> can mean…', a:'Both "overcame" and "comprehended"', wrong:['Only "saw"','Only "created"','Only "followed"'] },
+      { q:'<span class="gk">τὸ φῶς τῶν ἀνθρώπων</span> means…', a:'the light of humanity', wrong:['the light in humanity','humanity’s darkness','the man of light'] },
+    ],
+  },
+  {
+    id: 'onward', glyph: 'Ω', title: 'Your Path Forward',
+    blurb: 'A realistic plan for the next twelve months.',
+    body: () => `
+      <p>You now hold the foundations: the alphabet and its sounds, the article, two declensions,
+      the present tense, the core prepositions — and you have read real scripture. Here is what a
+      sustainable road onward looks like.</p>
+      <h3>The daily practice (20–30 minutes beats 3 hours on Saturday)</h3>
+      <ul>
+        <li><strong>10 min vocabulary</strong> — the Flashcards tab here, or Anki with a frequency deck.
+          Target: the ~310 words occurring 50+ times in the NT.</li>
+        <li><strong>10 min grammar</strong> — one section of a first-year grammar (below).</li>
+        <li><strong>5–10 min reading aloud</strong> — start with 1 John (the easiest Greek in the NT),
+          then John's Gospel, then Mark.</li>
+      </ul>
+      <h3>Pick one grammar and finish it</h3>
+      <ul>
+        <li><strong>Mounce, <em>Basics of Biblical Greek</em></strong> — the most widely used; workbook,
+          video lectures, and a large online ecosystem.</li>
+        <li><strong>Croy, <em>A Primer of Biblical Greek</em></strong> — leaner and brisker, with
+          real Septuagint and NT sentences from the start.</li>
+        <li><strong>Black, <em>Learn to Read New Testament Greek</em></strong> — clear, linguistically
+          informed, compact.</li>
+      </ul>
+      <h3>Free companions</h3>
+      <ul>
+        <li><strong>Daily Dose of Greek</strong> — a 2-minute video every weekday, one verse at a time.
+          The single best habit-keeper in the field.</li>
+        <li><strong>STEP Bible (stepbible.org)</strong> and <strong>Blue Letter Bible</strong> — free
+          tagged Greek texts: tap any word for parsing and lexicon entries.</li>
+        <li><strong>A reader's Greek New Testament</strong> — footnotes gloss every word occurring
+          under 30 times, so you can read whole pages without a dictionary.</li>
+      </ul>
+      <h3>A realistic timeline</h3>
+      <ul>
+        <li><strong>Months 1–3:</strong> alphabet mastered, ~100 words, present tense, both main declensions.</li>
+        <li><strong>Months 4–8:</strong> the other tenses (future, aorist, imperfect, perfect), participles begin. Reading 1 John slowly.</li>
+        <li><strong>Months 9–12:</strong> ~300+ words, all indicative tenses, reading John's Gospel with a reader's edition.</li>
+      </ul>
+      <div class="callout"><strong>The one rule that matters:</strong> never miss two days in a row.
+      Languages are lost in the gaps, not in the difficulty. <span class="gk">Ἡ δὲ ἀρχὴ ἤδη σή ἐστιν</span> —
+      the beginning is already yours.</div>`,
+    quiz: [
+      { q:'Which NT book has the easiest Greek for a first read?', a:'1 John', wrong:['Hebrews','Luke','Revelation'] },
+      { q:'Roughly how many words occur 50+ times in the NT (the classic first-year target)?', a:'About 310', wrong:['About 50','About 1,000','About 5,400'] },
+      { q:'What does a "reader’s edition" of the Greek NT add?', a:'Footnote glosses for rare words, so you keep reading', wrong:['English on facing pages','Pictures and maps','Modern Greek pronunciation'] },
+      { q:'The most effective study schedule is…', a:'20–30 focused minutes daily', wrong:['3 hours once a week','Only reading translations','Memorizing whole chapters first'] },
+      { q:'<span class="gk">ἐν ἀρχῇ</span> — one last time — means…', a:'in the beginning', wrong:['in the church','at the end','with authority'] },
+    ],
+  },
+];
+
+/* ============================================================
+   Rendering
+============================================================ */
+const app = document.getElementById('app');
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function go(v, lessonId) {
+  view = v;
+  currentLesson = lessonId || null;
+  window.scrollTo(0, 0);
+  render();
+}
+
+function render() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  const tabId = view === 'lesson' ? 'tab-home' : 'tab-' + view;
+  const tab = document.getElementById(tabId);
+  if (tab) tab.classList.add('active');
+
+  if (view === 'home') renderHome();
+  else if (view === 'lesson') renderLesson();
+  else if (view === 'cards') renderCards();
+  else if (view === 'ref') renderRef();
+}
+
+/* ---------- home ---------- */
+function renderHome() {
+  const done = LESSONS.filter(l => state.lessons[l.id] && state.lessons[l.id].done).length;
+  const pct = Math.round(done / LESSONS.length * 100);
+  app.innerHTML = `
+    <div class="hero">
+      <p class="uncial greek">ΕΝ ΑΡΧΗ ΗΝ Ο <span class="nomen">ΛΟΓΟΣ</span></p>
+      <p class="translation">"In the beginning was the Word" — John 1:1</p>
+      <p class="sub">A first course in Biblical Greek: nine lessons from the alphabet to reading
+      the opening of John's Gospel in the original — the way the Gospel writers wrote it.</p>
+      <div class="progress-line">
+        <span>${done} of ${LESSONS.length} lessons</span>
+        <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <span>${pct}%</span>
+      </div>
+    </div>
+    <div class="path">
+      ${LESSONS.map((l, i) => {
+        const st = state.lessons[l.id];
+        const isDone = st && st.done;
+        return `
+        <button class="lesson-card ${isDone ? 'done' : ''}" onclick="go('lesson','${l.id}')">
+          <span class="lesson-glyph greek">${isDone ? '✓' : l.glyph}</span>
+          <span class="lesson-meta">
+            <span class="kicker">Lesson ${i + 1}</span>
+            <h3>${l.title}</h3>
+            <p>${l.blurb}</p>
+          </span>
+          <span class="lesson-state">${isDone ? `Quiz ${st.score}/${st.total}` : ''}</span>
+        </button>`;
+      }).join('')}
+    </div>`;
+}
+
+/* ---------- lesson ---------- */
+let quiz = null;
+
+function renderLesson() {
+  const idx = LESSONS.findIndex(l => l.id === currentLesson);
+  const l = LESSONS[idx];
+  if (!l) return go('home');
+  quiz = { i: 0, score: 0, answered: false, items: l.quiz };
+  app.innerHTML = `
+    <button class="crumb" onclick="go('home')">← Back to the path</button>
+    <div class="lesson-head">
+      <span class="kicker">Lesson ${idx + 1} of ${LESSONS.length}</span>
+      <h2>${l.title}</h2>
+    </div>
+    <article class="lesson-body">${l.body()}</article>
+    <div class="quiz" id="quiz"></div>`;
+  renderQuiz();
+}
+
+function renderQuiz() {
+  const el = document.getElementById('quiz');
+  if (!el || !quiz) return;
+  const l = LESSONS.find(x => x.id === currentLesson);
+  if (quiz.i >= quiz.items.length) {
+    const prev = state.lessons[l.id];
+    if (!prev || quiz.score >= (prev.score || 0)) {
+      state.lessons[l.id] = { done: true, score: quiz.score, total: quiz.items.length };
+      store.save(state);
+    } else if (!prev.done) {
+      state.lessons[l.id] = { done: true, score: quiz.score, total: quiz.items.length };
+      store.save(state);
+    }
+    const nextIdx = LESSONS.findIndex(x => x.id === l.id) + 1;
+    const next = LESSONS[nextIdx];
+    el.innerHTML = `
+      <div class="kicker">Lesson check</div>
+      <div class="quiz-result">
+        <div class="score">${quiz.score} / ${quiz.items.length}</div>
+        <p>${quiz.score === quiz.items.length ? 'Perfect — the scribes would be proud.'
+            : quiz.score >= Math.ceil(quiz.items.length * 0.6) ? 'Solid. Review what you missed and move on.'
+            : 'Worth one more pass through the lesson before continuing.'}</p>
+        <div class="quiz-actions">
+          <button class="btn ghost" onclick="retryQuiz()">Retry quiz</button>
+          ${next ? `<button class="btn" onclick="go('lesson','${next.id}')">Next: ${next.title} →</button>`
+                 : `<button class="btn" onclick="go('home')">Back to the path</button>`}
+        </div>
+      </div>`;
+    return;
+  }
+  const q = quiz.items[quiz.i];
+  const choices = shuffleDeterministic([q.a, ...q.wrong], quiz.i + quiz.score * 7 + q.a.length);
+  el.innerHTML = `
+    <div class="kicker">Lesson check</div>
+    <div class="qcount">Question ${quiz.i + 1} of ${quiz.items.length}</div>
+    <p class="question">${q.q}</p>
+    <div class="choices">
+      ${choices.map(c => `<button class="choice" data-correct="${c === q.a}" onclick="answer(this)">${c}</button>`).join('')}
+    </div>
+    <div class="feedback" id="feedback"></div>`;
+}
+
+function answer(btn) {
+  if (quiz.answered) return;
+  quiz.answered = true;
+  const correct = btn.dataset.correct === 'true';
+  const fb = document.getElementById('feedback');
+  document.querySelectorAll('.choice').forEach(c => {
+    c.disabled = true;
+    if (c.dataset.correct === 'true') c.classList.add('correct');
+  });
+  if (correct) {
+    quiz.score++;
+    fb.textContent = 'Correct.';
+    fb.className = 'feedback good';
+  } else {
+    btn.classList.add('wrong');
+    fb.textContent = 'Not quite — the highlighted answer is correct.';
+    fb.className = 'feedback bad';
+  }
+  setTimeout(() => { quiz.i++; quiz.answered = false; renderQuiz(); }, correct ? 700 : 1900);
+}
+
+function retryQuiz() {
+  quiz = { i: 0, score: 0, answered: false, items: LESSONS.find(x => x.id === currentLesson).quiz };
+  renderQuiz();
+  document.getElementById('quiz').scrollIntoView({ behavior: 'smooth' });
+}
+
+function shuffleDeterministic(arr, seed) {
+  const a = arr.slice();
+  let s = seed * 2654435761 % 4294967296;
+  for (let i = a.length - 1; i > 0; i--) {
+    s = (s * 1103515245 + 12345) % 2147483648;
+    const j = s % (i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ---------- alphabet widget ---------- */
+function letterGridHTML() {
+  return `<div class="letter-grid">
+    ${ALPHABET.map((L, i) => `
+      <button class="letter-cell greek" id="lc-${i}" onclick="showLetter(${i})">
+        ${L.up} ${L.low}<small>${L.name}</small>
+      </button>`).join('')}
+  </div>`;
+}
+function showLetter(i) {
+  const L = ALPHABET[i];
+  document.querySelectorAll('.letter-cell').forEach(c => c.classList.remove('sel'));
+  const cell = document.getElementById('lc-' + i);
+  if (cell) cell.classList.add('sel');
+  const d = document.getElementById('letter-detail');
+  if (!d) return;
+  d.innerHTML = `
+    <div class="letter-detail">
+      <span class="big greek">${L.up} ${L.low}</span>
+      <dl>
+        <div class="row"><dt>Name:</dt><dd>${L.name}</dd> &nbsp; <dt>Transliteration:</dt><dd>${L.tr}</dd></div>
+        <div class="row"><dt>Sound:</dt><dd>${L.sound}</dd></div>
+        ${L.note ? `<div class="row"><dt>Note:</dt><dd>${L.note}</dd></div>` : ''}
+      </dl>
+    </div>`;
+}
+
+/* ---------- interlinear widget ---------- */
+function interlinearHTML() {
+  return `<div class="interlinear">
+    <div>
+      ${JOHN.map(v => `<span class="verse-num">${v.v}</span>` +
+        v.words.map((w, wi) =>
+          `<button class="il-word" onclick="showGloss(${v.v},${wi})">${w[0]}</button>`
+        ).join('')).join(' ')}
+    </div>
+    <div class="il-gloss" id="il-gloss">Tap any Greek word to see its pronunciation and meaning.</div>
+  </div>`;
+}
+function showGloss(v, wi) {
+  const verse = JOHN.find(x => x.v === v);
+  if (!verse) return;
+  const w = verse.words[wi];
+  document.querySelectorAll('.il-word').forEach(b => b.classList.remove('sel'));
+  const g = document.getElementById('il-gloss');
+  if (g) g.innerHTML = `<span class="gk">${w[0].replace(/[,.·]$/,'')}</span> &nbsp;<b>${w[1]}</b> — ${w[2]}`;
+}
+
+/* ---------- flashcards ---------- */
+let deck = { filter: 'all', order: [], pos: 0, flipped: false };
+
+function buildDeck() {
+  const idxs = CARDS.map((c, i) => i).filter(i => deck.filter === 'all' || CARDS[i].t === deck.filter);
+  idxs.sort((a, b) => {
+    const sa = state.cards[a] || { seen: 0, right: 0 };
+    const sb = state.cards[b] || { seen: 0, right: 0 };
+    return (sa.right - sa.seen * 0.4) - (sb.right - sb.seen * 0.4) || b - a;
+  });
+  deck.order = idxs;
+  deck.pos = 0;
+  deck.flipped = false;
+}
+
+function renderCards() {
+  if (!deck.order.length) buildDeck();
+  const total = CARDS.length;
+  const known = Object.values(state.cards).filter(c => c.right >= 2).length;
+  const i = deck.order[deck.pos % deck.order.length];
+  const c = CARDS[i];
+  app.innerHTML = `
+    <div class="lesson-head" style="margin-top:0.5rem">
+      <span class="kicker">Vocabulary</span>
+      <h2>Flashcards</h2>
+      <p style="color:var(--ink-soft);font-size:0.9rem;margin:0.4rem 0 0">The 60 words that unlock most of the
+      New Testament, ordered so the ones you miss come back first. Tap the card to flip it.</p>
+    </div>
+    <div class="deck-controls">
+      ${[['all','All words'],['small','Small words'],['noun','Nouns'],['verb','Verbs']].map(([k, label]) =>
+        `<button class="chip ${deck.filter === k ? 'active' : ''}" onclick="setFilter('${k}')">${label}</button>`).join('')}
+    </div>
+    <button class="flashcard" onclick="flipCard()" id="fc">
+      ${deck.flipped ? `
+        <span class="word">${c.w}</span>
+        <span class="answer">${c.g}</span>
+        <span class="freq">NT ×${c.f.toLocaleString()}</span>
+      ` : `
+        <span class="word">${c.w}</span>
+        <span class="hint">tap to reveal</span>
+      `}
+    </button>
+    <div class="card-actions" style="visibility:${deck.flipped ? 'visible' : 'hidden'}">
+      <button class="btn again" onclick="gradeCard(false)">Again</button>
+      <button class="btn got" onclick="gradeCard(true)">Got it</button>
+    </div>
+    <div class="deck-stats">Card ${(deck.pos % deck.order.length) + 1} of ${deck.order.length} in this set
+      · ${known} of ${total} words known (answered right twice)</div>`;
+}
+
+function setFilter(f) { deck.filter = f; buildDeck(); renderCards(); }
+function flipCard() { deck.flipped = !deck.flipped; renderCards(); }
+function gradeCard(right) {
+  const i = deck.order[deck.pos % deck.order.length];
+  const st = state.cards[i] || { seen: 0, right: 0 };
+  st.seen++;
+  if (right) st.right++;
+  state.cards[i] = st;
+  store.save(state);
+  if (!right) {
+    deck.order.splice(Math.min(deck.pos + 4, deck.order.length), 0, i);
+  }
+  deck.pos++;
+  deck.flipped = false;
+  renderCards();
+}
+
+/* ---------- reference ---------- */
+function renderRef() {
+  app.innerHTML = `
+    <div class="lesson-head" style="margin-top:0.5rem">
+      <span class="kicker">Look it up</span>
+      <h2>Reference</h2>
+    </div>
+
+    <div class="ref-section">
+      <h3>The alphabet</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Letter</th><th>Name</th><th>Translit.</th><th>Sound</th></tr>
+        ${ALPHABET.map(L => `<tr><td class="gk">${L.up} ${L.low}</td><td>${L.name}</td><td>${L.tr}</td><td>${L.sound}</td></tr>`).join('')}
+      </table></div>
+    </div>
+
+    <div class="ref-section">
+      <h3>The article — all 24 forms</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Case</th><th>Masc. sg</th><th>Fem. sg</th><th>Neut. sg</th><th>Masc. pl</th><th>Fem. pl</th><th>Neut. pl</th></tr>
+        <tr><td>Nom.</td><td class="gk">ὁ</td><td class="gk">ἡ</td><td class="gk">τό</td><td class="gk">οἱ</td><td class="gk">αἱ</td><td class="gk">τά</td></tr>
+        <tr><td>Gen.</td><td class="gk">τοῦ</td><td class="gk">τῆς</td><td class="gk">τοῦ</td><td class="gk">τῶν</td><td class="gk">τῶν</td><td class="gk">τῶν</td></tr>
+        <tr><td>Dat.</td><td class="gk">τῷ</td><td class="gk">τῇ</td><td class="gk">τῷ</td><td class="gk">τοῖς</td><td class="gk">ταῖς</td><td class="gk">τοῖς</td></tr>
+        <tr><td>Acc.</td><td class="gk">τόν</td><td class="gk">τήν</td><td class="gk">τό</td><td class="gk">τούς</td><td class="gk">τάς</td><td class="gk">τά</td></tr>
+      </table></div>
+    </div>
+
+    <div class="ref-section">
+      <h3>Second declension — <span class="gk">λόγος</span> (m.), <span class="gk">ἔργον</span> (n.)</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Case</th><th>Sg (m.)</th><th>Pl (m.)</th><th>Sg (n.)</th><th>Pl (n.)</th></tr>
+        <tr><td>Nom.</td><td class="gk">λόγος</td><td class="gk">λόγοι</td><td class="gk">ἔργον</td><td class="gk">ἔργα</td></tr>
+        <tr><td>Gen.</td><td class="gk">λόγου</td><td class="gk">λόγων</td><td class="gk">ἔργου</td><td class="gk">ἔργων</td></tr>
+        <tr><td>Dat.</td><td class="gk">λόγῳ</td><td class="gk">λόγοις</td><td class="gk">ἔργῳ</td><td class="gk">ἔργοις</td></tr>
+        <tr><td>Acc.</td><td class="gk">λόγον</td><td class="gk">λόγους</td><td class="gk">ἔργον</td><td class="gk">ἔργα</td></tr>
+      </table></div>
+    </div>
+
+    <div class="ref-section">
+      <h3>First declension — <span class="gk">ἀρχή</span>, <span class="gk">καρδία</span></h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Case</th><th>Sg (-η)</th><th>Pl</th><th>Sg (-α)</th><th>Pl</th></tr>
+        <tr><td>Nom.</td><td class="gk">ἀρχή</td><td class="gk">ἀρχαί</td><td class="gk">καρδία</td><td class="gk">καρδίαι</td></tr>
+        <tr><td>Gen.</td><td class="gk">ἀρχῆς</td><td class="gk">ἀρχῶν</td><td class="gk">καρδίας</td><td class="gk">καρδιῶν</td></tr>
+        <tr><td>Dat.</td><td class="gk">ἀρχῇ</td><td class="gk">ἀρχαῖς</td><td class="gk">καρδίᾳ</td><td class="gk">καρδίαις</td></tr>
+        <tr><td>Acc.</td><td class="gk">ἀρχήν</td><td class="gk">ἀρχάς</td><td class="gk">καρδίαν</td><td class="gk">καρδίας</td></tr>
+      </table></div>
+    </div>
+
+    <div class="ref-section">
+      <h3>Present active indicative — <span class="gk">λύω</span> and <span class="gk">εἰμί</span></h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Person</th><th>λύω sg</th><th>λύω pl</th><th>εἰμί sg</th><th>εἰμί pl</th></tr>
+        <tr><td>1st</td><td class="gk">λύω</td><td class="gk">λύομεν</td><td class="gk">εἰμί</td><td class="gk">ἐσμέν</td></tr>
+        <tr><td>2nd</td><td class="gk">λύεις</td><td class="gk">λύετε</td><td class="gk">εἶ</td><td class="gk">ἐστέ</td></tr>
+        <tr><td>3rd</td><td class="gk">λύει</td><td class="gk">λύουσι(ν)</td><td class="gk">ἐστί(ν)</td><td class="gk">εἰσί(ν)</td></tr>
+      </table></div>
+      <p style="font-size:0.85rem;color:var(--ink-soft)">Imperfect of εἰμί worth knowing early:
+      <span class="gk">ἦν</span> — "was" (3rd singular), as in John 1:1.</p>
+    </div>
+
+    <div class="ref-section">
+      <h3>Prepositions at a glance</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Prep.</th><th>Case</th><th>Meaning</th></tr>
+        <tr><td class="gk">ἐν</td><td>dat.</td><td>in, among</td></tr>
+        <tr><td class="gk">εἰς</td><td>acc.</td><td>into, toward</td></tr>
+        <tr><td class="gk">ἐκ / ἐξ</td><td>gen.</td><td>out of, from</td></tr>
+        <tr><td class="gk">πρός</td><td>acc.</td><td>to, toward, with</td></tr>
+        <tr><td class="gk">ἀπό</td><td>gen.</td><td>from, away from</td></tr>
+        <tr><td class="gk">διά</td><td>gen. / acc.</td><td>through / because of</td></tr>
+        <tr><td class="gk">μετά</td><td>gen. / acc.</td><td>with / after</td></tr>
+        <tr><td class="gk">κατά</td><td>gen. / acc.</td><td>down from / according to</td></tr>
+        <tr><td class="gk">ἐπί</td><td>gen., dat., acc.</td><td>on, upon, over</td></tr>
+      </table></div>
+    </div>`;
+}
+
+render();
+</script>
+</body>
+</html>
