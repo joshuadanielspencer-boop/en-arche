@@ -553,6 +553,101 @@
     border-bottom: 1px solid var(--line);
   }
 
+  /* ---------- profiles ---------- */
+  .profile-chip {
+    border: 1px solid var(--line);
+    color: var(--gold);
+    font-weight: 600;
+    max-width: 9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .profile-list { display: flex; flex-direction: column; gap: 0.6rem; margin: 1.25rem 0; }
+  .profile-row {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0.85rem 1.1rem;
+    box-shadow: var(--shadow);
+  }
+  .profile-row.active-profile { border-color: var(--gold); }
+  .profile-row .pname { font-weight: 600; font-size: 1.05rem; }
+  .profile-row .pstats { font-size: 0.8rem; color: var(--ink-soft); }
+  .profile-row .spacer { margin-left: auto; }
+  .btn.small { font-size: 0.8rem; padding: 0.35rem 0.9rem; }
+  .btn.danger { background: none; color: var(--rubric); border: 1px solid var(--rubric); }
+  .new-profile { display: flex; gap: 0.6rem; margin-top: 1.25rem; }
+  .new-profile input {
+    flex: 1;
+    font: inherit;
+    font-size: 0.95rem;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.5rem 0.85rem;
+  }
+  .new-profile input:focus-visible { outline: 2px solid var(--lapis); outline-offset: 1px; }
+
+  /* ---------- reading ---------- */
+  .passage-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    text-align: left;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    box-shadow: var(--shadow);
+  }
+  .passage-card:hover { border-color: var(--lapis); }
+  .passage-card h3 { font-size: 1.1rem; }
+  .passage-card .pref { font-size: 0.8rem; color: var(--ink-soft); }
+  .passage-card .plevel {
+    margin-left: auto;
+    flex: none;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--lapis);
+    background: var(--lapis-wash);
+    border-radius: 999px;
+    padding: 0.2rem 0.7rem;
+    white-space: nowrap;
+  }
+  .passage-card.done-reading .plevel { color: var(--gold); background: var(--gold-wash); }
+  .mode-toggle { display: flex; gap: 0.4rem; margin: 1rem 0; }
+  .verse-block {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 1.2rem 1.25rem;
+    margin: 1rem 0;
+    box-shadow: var(--shadow);
+  }
+  .verse-block .vgreek {
+    font-family: "Cardo", Georgia, serif;
+    font-size: 1.45rem;
+    line-height: 1.55;
+  }
+  .verse-block .ven {
+    margin-top: 0.9rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--line);
+    font-size: 0.95rem;
+  }
+  .verse-block .vnote { font-size: 0.85rem; color: var(--ink-soft); margin-top: 0.5rem; }
+  .drill-ref { font-size: 0.78rem; color: var(--gold); font-weight: 600; letter-spacing: 0.04em; }
+
   footer.colophon {
     max-width: 780px;
     margin: 0 auto;
@@ -580,8 +675,10 @@
     <button class="wordmark" onclick="go('home')"><span class="gk-mark greek">Ἐν ἀρχῇ</span> · En Archē</button>
     <nav class="tabs">
       <button class="tab" id="tab-home" onclick="go('home')">Path</button>
+      <button class="tab" id="tab-reading" onclick="go('reading')">Reading</button>
       <button class="tab" id="tab-cards" onclick="go('cards')">Flashcards</button>
       <button class="tab" id="tab-ref" onclick="go('ref')">Reference</button>
+      <button class="tab profile-chip" id="tab-profiles" onclick="go('profiles')" title="Profiles">—</button>
     </nav>
   </div>
 </header>
@@ -597,21 +694,72 @@
 /* ============================================================
    State & storage
 ============================================================ */
+function blankProfile() {
+  return { lessons: {}, cards: {}, reading: {}, drill: {} };
+}
+function normalizeProfile(p) {
+  return Object.assign(blankProfile(), p || {});
+}
 const store = {
   load() {
     try {
-      const raw = localStorage.getItem('enarche-v1');
-      if (raw) return JSON.parse(raw);
+      const raw = localStorage.getItem('enarche-v2');
+      if (raw) {
+        const db = JSON.parse(raw);
+        if (db && db.profiles && db.profiles[db.active]) {
+          Object.keys(db.profiles).forEach(k => { db.profiles[k] = normalizeProfile(db.profiles[k]); });
+          return db;
+        }
+      }
+      // migrate v1 (single-user) data into a default profile
+      const old = localStorage.getItem('enarche-v1');
+      if (old) {
+        return { active: 'Student', profiles: { 'Student': normalizeProfile(JSON.parse(old)) } };
+      }
     } catch (e) {}
-    return { lessons: {}, cards: {} };
+    return { active: 'Student', profiles: { 'Student': blankProfile() } };
   },
-  save(state) {
-    try { localStorage.setItem('enarche-v1', JSON.stringify(state)); } catch (e) {}
+  save() {
+    try { localStorage.setItem('enarche-v2', JSON.stringify(DB)); } catch (e) {}
   }
 };
-let state = store.load();
+let DB = store.load();
+let state = DB.profiles[DB.active];
 let view = 'home';
 let currentLesson = null;
+
+function switchProfile(name) {
+  if (!DB.profiles[name]) return;
+  DB.active = name;
+  state = DB.profiles[name];
+  deck.order = [];
+  drill.order = [];
+  store.save();
+  go('home');
+}
+function createProfile() {
+  const input = document.getElementById('new-profile-name');
+  const name = (input && input.value || '').trim().slice(0, 24);
+  if (!name) return;
+  if (!DB.profiles[name]) {
+    DB.profiles[name] = blankProfile();
+    store.save();
+  }
+  switchProfile(name);
+}
+function deleteProfile(name) {
+  if (!DB.profiles[name] || Object.keys(DB.profiles).length <= 1) return;
+  if (!confirm(`Delete the profile “${name}” and all its progress? This cannot be undone.`)) return;
+  delete DB.profiles[name];
+  if (DB.active === name) {
+    DB.active = Object.keys(DB.profiles)[0];
+    state = DB.profiles[DB.active];
+    deck.order = [];
+    drill.order = [];
+  }
+  store.save();
+  render();
+}
 
 /* ============================================================
    Data: alphabet
@@ -707,6 +855,45 @@ const CARDS = [
   { w:'ἀγάπη, -ης, ἡ', g:'love', t:'noun', f:116 },
   { w:'φῶς, φωτός, τό', g:'light', t:'noun', f:73 },
   { w:'ἀρχή, -ῆς, ἡ', g:'beginning, ruler, authority', t:'noun', f:55 },
+  { w:'οἶδα', g:'I know (a perfect form with present meaning)', t:'verb', f:318 },
+  { w:'μαθητής, -οῦ, ὁ', g:'disciple, student', t:'noun', f:261 },
+  { w:'λαμβάνω', g:'I take, receive (aorist ἔλαβον)', t:'verb', f:258 },
+  { w:'γῆ, γῆς, ἡ', g:'earth, land, soil', t:'noun', f:250 },
+  { w:'πίστις, πίστεως, ἡ', g:'faith, trust', t:'noun', f:243 },
+  { w:'ἅγιος, -α, -ον', g:'holy; οἱ ἅγιοι = the saints', t:'small', f:233 },
+  { w:'ἀποκρίνομαι', g:'I answer (aorist ἀπεκρίθη)', t:'verb', f:231 },
+  { w:'ὄνομα, -ατος, τό', g:'name', t:'noun', f:231 },
+  { w:'γινώσκω', g:'I know, learn (aorist ἔγνων)', t:'verb', f:222 },
+  { w:'δύναμαι', g:'I am able, I can', t:'verb', f:210 },
+  { w:'νόμος, -ου, ὁ', g:'law', t:'noun', f:194 },
+  { w:'εὑρίσκω', g:'I find (aorist εὗρον)', t:'verb', f:176 },
+  { w:'ὄχλος, -ου, ὁ', g:'crowd, multitude', t:'noun', f:175 },
+  { w:'δόξα, -ης, ἡ', g:'glory, splendor', t:'noun', f:166 },
+  { w:'βασιλεία, -ας, ἡ', g:'kingdom, reign', t:'noun', f:162 },
+  { w:'ἔθνος, -ους, τό', g:'nation; τὰ ἔθνη = the Gentiles', t:'noun', f:162 },
+  { w:'χάρις, χάριτος, ἡ', g:'grace, favor', t:'noun', f:155 },
+  { w:'πορεύομαι', g:'I go, travel', t:'verb', f:154 },
+  { w:'καλέω', g:'I call, invite', t:'verb', f:148 },
+  { w:'ἐγείρω', g:'I raise up (passive ἠγέρθη = was raised)', t:'verb', f:144 },
+  { w:'προφήτης, -ου, ὁ', g:'prophet', t:'noun', f:144 },
+  { w:'σῶμα, -ατος, τό', g:'body', t:'noun', f:142 },
+  { w:'ζάω', g:'I live', t:'verb', f:140 },
+  { w:'βάλλω', g:'I throw, put (aorist ἔβαλον)', t:'verb', f:122 },
+  { w:'θέλω', g:'I want, wish', t:'verb', f:208 },
+  { w:'μένω', g:'I remain, abide', t:'verb', f:118 },
+  { w:'ἐκκλησία, -ας, ἡ', g:'assembly, church', t:'noun', f:114 },
+  { w:'ὁδός, -οῦ, ἡ', g:'way, road (feminine despite -ος)', t:'noun', f:101 },
+  { w:'ἀλήθεια, -ας, ἡ', g:'truth', t:'noun', f:109 },
+  { w:'δοῦλος, -ου, ὁ', g:'slave, servant', t:'noun', f:124 },
+  { w:'σάρξ, σαρκός, ἡ', g:'flesh', t:'noun', f:147 },
+  { w:'ἐξουσία, -ας, ἡ', g:'authority, right', t:'noun', f:102 },
+  { w:'εἰρήνη, -ης, ἡ', g:'peace', t:'noun', f:92 },
+  { w:'τέκνον, -ου, τό', g:'child', t:'noun', f:99 },
+  { w:'πέμπω', g:'I send (future πέμψω)', t:'verb', f:79 },
+  { w:'προσεύχομαι', g:'I pray', t:'verb', f:86 },
+  { w:'ἀποστέλλω', g:'I send out (aorist ἀπέστειλα)', t:'verb', f:132 },
+  { w:'σῴζω', g:'I save, rescue (aorist passive ἐσώθη)', t:'verb', f:107 },
+  { w:'βαπτίζω', g:'I baptize, immerse', t:'verb', f:77 },
 ];
 
 /* ============================================================
@@ -784,6 +971,408 @@ const JOHN = [
     ['οὐ','ou','not'],
     ['κατέλαβεν.','katelaben','overcame / comprehended — aorist of καταλαμβάνω, famously ambiguous: to seize, overtake, or grasp with the mind'],
   ]},
+];
+const JOHN1_EN = [
+  'In the beginning was the Word, and the Word was with God, and the Word was God.',
+  'He was in the beginning with God.',
+  'All things came into being through him, and apart from him not even one thing came into being that has come into being.',
+  'In him was life, and the life was the light of men.',
+  'And the light shines in the darkness, and the darkness did not overcome it.',
+];
+
+/* ============================================================
+   Data: guided reading passages
+============================================================ */
+const PASSAGES = {
+  john1: {
+    title: 'The Prologue', ref: 'John 1:1–5', level: 'After Lesson 8',
+    verses: JOHN.map((v, i) => ({ v: v.v, words: v.words, en: JOHN1_EN[i] })),
+  },
+  iam: {
+    title: 'The "I AM" Sayings', ref: 'John 6–14', level: 'After Lesson 11',
+    verses: [
+      { v: 1, ref: '6:35', en: 'I am the bread of life.', words: [
+        ['Ἐγώ','egō','I — the pronoun is expressed, so it is emphatic: I and no other'],
+        ['εἰμι','eimi','am — 1st singular of εἰμί'],
+        ['ὁ','ho','the'],
+        ['ἄρτος','artos','bread — nominative, the predicate'],
+        ['τῆς','tēs','of the — genitive feminine article'],
+        ['ζωῆς.','zōēs','of life — genitive of ζωή'],
+      ]},
+      { v: 2, ref: '8:12', en: 'I am the light of the world.', words: [
+        ['Ἐγώ','egō','I — emphatic'],
+        ['εἰμι','eimi','am'],
+        ['τὸ','to','the — neuter article'],
+        ['φῶς','phōs','light — neuter noun, from John 1:4–5'],
+        ['τοῦ','tou','of the'],
+        ['κόσμου.','kosmou','of the world — genitive of κόσμος'],
+      ]},
+      { v: 3, ref: '10:11', en: 'I am the good shepherd.', words: [
+        ['Ἐγώ','egō','I — emphatic'],
+        ['εἰμι','eimi','am'],
+        ['ὁ','ho','the'],
+        ['ποιμὴν','poimēn','shepherd — a third-declension noun'],
+        ['ὁ','ho','the — the article repeats before the adjective: literally "the shepherd, the good one"'],
+        ['καλός.','kalos','good, noble — attributive position, second form'],
+      ]},
+      { v: 4, ref: '11:25', en: 'I am the resurrection and the life.', words: [
+        ['Ἐγώ','egō','I — emphatic'],
+        ['εἰμι','eimi','am'],
+        ['ἡ','hē','the — feminine article'],
+        ['ἀνάστασις','anastasis','resurrection — literally "standing up again"'],
+        ['καὶ','kai','and'],
+        ['ἡ','hē','the'],
+        ['ζωή.','zōē','life'],
+      ]},
+      { v: 5, ref: '14:6', en: 'I am the way and the truth and the life; no one comes to the Father except through me.', words: [
+        ['Ἐγώ','egō','I — emphatic'],
+        ['εἰμι','eimi','am'],
+        ['ἡ','hē','the'],
+        ['ὁδὸς','hodos','way, road — feminine despite the -ος ending (a rare exception)'],
+        ['καὶ','kai','and'],
+        ['ἡ','hē','the'],
+        ['ἀλήθεια','alētheia','truth'],
+        ['καὶ','kai','and'],
+        ['ἡ','hē','the'],
+        ['ζωή·','zōē','life'],
+        ['οὐδεὶς','oudeis','no one — literally "not even one"'],
+        ['ἔρχεται','erchetai','comes — present of ἔρχομαι, a middle-form verb'],
+        ['πρὸς','pros','to, toward — + accusative'],
+        ['τὸν','ton','the'],
+        ['πατέρα','patera','Father — accusative of πατήρ'],
+        ['εἰ','ei','if'],
+        ['μὴ','mē','not — εἰ μή together means "except"'],
+        ['δι᾽','di’','through — διά + genitive'],
+        ['ἐμοῦ.','emou','me — emphatic genitive of ἐγώ'],
+      ]},
+    ],
+  },
+  john1b: {
+    title: 'He Came to His Own', ref: 'John 1:10–12', level: 'After Lesson 16',
+    verses: [
+      { v: 10, en: 'He was in the world, and the world came into being through him, and the world did not know him.', words: [
+        ['ἐν','en','in'],
+        ['τῷ','tō','the — dative masculine article'],
+        ['κόσμῳ','kosmō','world — dative, with the iota subscript'],
+        ['ἦν,','ēn','he was — imperfect of εἰμί'],
+        ['καὶ','kai','and'],
+        ['ὁ','ho','the'],
+        ['κόσμος','kosmos','world — nominative, subject'],
+        ['δι᾽','di’','through'],
+        ['αὐτοῦ','autou','him — genitive'],
+        ['ἐγένετο,','egeneto','came into being — aorist of γίνομαι'],
+        ['καὶ','kai','and'],
+        ['ὁ','ho','the'],
+        ['κόσμος','kosmos','world — subject again'],
+        ['αὐτὸν','auton','him — accusative, the object'],
+        ['οὐκ','ouk','not — οὐ before a smooth-breathing vowel'],
+        ['ἔγνω.','egnō','knew — second aorist of γινώσκω (to know)'],
+      ]},
+      { v: 11, en: 'He came to his own home, and his own people did not receive him.', words: [
+        ['εἰς','eis','to, into'],
+        ['τὰ','ta','the — neuter plural article'],
+        ['ἴδια','idia','his own things — neuter plural of ἴδιος: his own home, his own place'],
+        ['ἦλθεν,','ēlthen','he came — second aorist of ἔρχομαι'],
+        ['καὶ','kai','and'],
+        ['οἱ','hoi','the — masculine plural article'],
+        ['ἴδιοι','idioi','his own people — the same adjective, now masculine: his own folk'],
+        ['αὐτὸν','auton','him'],
+        ['οὐ','ou','not'],
+        ['παρέλαβον.','parelabon','received, welcomed — second aorist of παραλαμβάνω'],
+      ]},
+      { v: 12, en: 'But as many as received him, to them he gave authority to become children of God — to those believing in his name.', words: [
+        ['ὅσοι','hosoi','as many as, all who'],
+        ['δὲ','de','but — postpositive, standing second'],
+        ['ἔλαβον','elabon','received — second aorist of λαμβάνω'],
+        ['αὐτόν,','auton','him'],
+        ['ἔδωκεν','edōken','he gave — aorist of δίδωμι'],
+        ['αὐτοῖς','autois','to them — dative plural'],
+        ['ἐξουσίαν','exousian','authority, right — accusative'],
+        ['τέκνα','tekna','children — neuter plural'],
+        ['θεοῦ','theou','of God'],
+        ['γενέσθαι,','genesthai','to become — aorist infinitive of γίνομαι'],
+        ['τοῖς','tois','to the — dative plural article'],
+        ['πιστεύουσιν','pisteuousin','ones believing — present participle of πιστεύω, dative plural'],
+        ['εἰς','eis','in, into'],
+        ['τὸ','to','the'],
+        ['ὄνομα','onoma','name — a third-declension neuter noun'],
+        ['αὐτοῦ.','autou','of him, his'],
+      ]},
+    ],
+  },
+  john316: {
+    title: 'God So Loved the World', ref: 'John 3:16–17', level: 'After Lesson 19',
+    verses: [
+      { v: 16, en: 'For God so loved the world that he gave his only Son, so that everyone who believes in him should not perish but have eternal life.', words: [
+        ['Οὕτως','houtōs','thus, so, in this way — the famous "so"'],
+        ['γὰρ','gar','for — postpositive'],
+        ['ἠγάπησεν','ēgapēsen','loved — aorist of ἀγαπάω; the augment lengthens α to η'],
+        ['ὁ','ho','the'],
+        ['θεὸς','theos','God — subject'],
+        ['τὸν','ton','the'],
+        ['κόσμον,','kosmon','world — accusative, the object'],
+        ['ὥστε','hōste','so that, with the result that'],
+        ['τὸν','ton','the'],
+        ['υἱὸν','huion','Son — accusative'],
+        ['τὸν','ton','the — the article repeats before the adjective'],
+        ['μονογενῆ','monogenē','only, one-of-a-kind — μονογενής, traditionally "only-begotten"'],
+        ['ἔδωκεν,','edōken','he gave — aorist of δίδωμι'],
+        ['ἵνα','hina','in order that — takes the subjunctive'],
+        ['πᾶς','pas','everyone, all'],
+        ['ὁ','ho','the'],
+        ['πιστεύων','pisteuōn','one believing — present participle: πᾶς ὁ πιστεύων = "everyone who believes"'],
+        ['εἰς','eis','in, into'],
+        ['αὐτὸν','auton','him'],
+        ['μὴ','mē','not — μή, because the verb is subjunctive'],
+        ['ἀπόληται','apolētai','should perish — aorist subjunctive of ἀπόλλυμι'],
+        ['ἀλλ᾽','all’','but — ἀλλά elided'],
+        ['ἔχῃ','echē','should have — present subjunctive of ἔχω'],
+        ['ζωὴν','zōēn','life — accusative'],
+        ['αἰώνιον.','aiōnion','eternal — the adjective follows its noun here'],
+      ]},
+      { v: 17, en: 'For God did not send the Son into the world to judge the world, but so that the world might be saved through him.', words: [
+        ['οὐ','ou','not'],
+        ['γὰρ','gar','for'],
+        ['ἀπέστειλεν','apesteilen','sent — aorist of ἀποστέλλω (whence "apostle")'],
+        ['ὁ','ho','the'],
+        ['θεὸς','theos','God'],
+        ['τὸν','ton','the'],
+        ['υἱὸν','huion','Son'],
+        ['εἰς','eis','into'],
+        ['τὸν','ton','the'],
+        ['κόσμον','kosmon','world'],
+        ['ἵνα','hina','in order that'],
+        ['κρίνῃ','krinē','he might judge — present subjunctive of κρίνω'],
+        ['τὸν','ton','the'],
+        ['κόσμον,','kosmon','world'],
+        ['ἀλλ᾽','all’','but'],
+        ['ἵνα','hina','in order that'],
+        ['σωθῇ','sōthē','might be saved — aorist passive subjunctive of σῴζω'],
+        ['ὁ','ho','the'],
+        ['κόσμος','kosmos','world — subject of the passive verb'],
+        ['δι᾽','di’','through'],
+        ['αὐτοῦ.','autou','him'],
+      ]},
+    ],
+  },
+  prayer: {
+    title: 'The Lord’s Prayer', ref: 'Matthew 6:9–13', level: 'After Lesson 25',
+    verses: [
+      { v: 9, en: 'Our Father in the heavens, let your name be hallowed.', words: [
+        ['Πάτερ','Pater','Father — the vocative case, direct address'],
+        ['ἡμῶν','hēmōn','our — literally "of us"'],
+        ['ὁ','ho','the (one) — the article turns the phrase into "the one in the heavens"'],
+        ['ἐν','en','in'],
+        ['τοῖς','tois','the — dative plural'],
+        ['οὐρανοῖς·','ouranois','heavens — dative plural of οὐρανός'],
+        ['ἁγιασθήτω','hagiasthētō','let it be hallowed — aorist passive imperative, 3rd person, of ἁγιάζω'],
+        ['τὸ','to','the'],
+        ['ὄνομά','onoma','name — subject of the 3rd-person command'],
+        ['σου·','sou','your — "of you"'],
+      ]},
+      { v: 10, en: 'Let your kingdom come; let your will be done, as in heaven, so also on earth.', words: [
+        ['ἐλθέτω','elthetō','let it come — aorist imperative, 3rd person, of ἔρχομαι'],
+        ['ἡ','hē','the'],
+        ['βασιλεία','basileia','kingdom, reign'],
+        ['σου·','sou','your'],
+        ['γενηθήτω','genēthētō','let it be done, let it happen — aorist passive imperative of γίνομαι'],
+        ['τὸ','to','the'],
+        ['θέλημά','thelēma','will, desire — a third-declension neuter noun'],
+        ['σου,','sou','your'],
+        ['ὡς','hōs','as'],
+        ['ἐν','en','in'],
+        ['οὐρανῷ','ouranō','heaven — dative'],
+        ['καὶ','kai','also, and'],
+        ['ἐπὶ','epi','on, upon'],
+        ['γῆς·','gēs','earth — genitive of γῆ'],
+      ]},
+      { v: 11, en: 'Give us today our daily bread.', words: [
+        ['τὸν','ton','the'],
+        ['ἄρτον','arton','bread — accusative, the object'],
+        ['ἡμῶν','hēmōn','our'],
+        ['τὸν','ton','the — article repeated before the adjective'],
+        ['ἐπιούσιον','epiousion','daily — a word found almost nowhere else in all Greek literature; its exact meaning is still debated'],
+        ['δὸς','dos','give! — aorist imperative of δίδωμι'],
+        ['ἡμῖν','hēmin','to us — dative'],
+        ['σήμερον·','sēmeron','today'],
+      ]},
+      { v: 12, en: 'And forgive us our debts, as we also have forgiven our debtors.', words: [
+        ['καὶ','kai','and'],
+        ['ἄφες','aphes','forgive! — aorist imperative of ἀφίημι (to send away, release)'],
+        ['ἡμῖν','hēmin','us — dative: "release for us"'],
+        ['τὰ','ta','the'],
+        ['ὀφειλήματα','opheilēmata','debts — what is owed; neuter plural'],
+        ['ἡμῶν,','hēmōn','our'],
+        ['ὡς','hōs','as'],
+        ['καὶ','kai','also'],
+        ['ἡμεῖς','hēmeis','we — emphatic'],
+        ['ἀφήκαμεν','aphēkamen','have forgiven — aorist of ἀφίημι'],
+        ['τοῖς','tois','the — dative plural'],
+        ['ὀφειλέταις','opheiletais','debtors — dative'],
+        ['ἡμῶν·','hēmōn','our'],
+      ]},
+      { v: 13, en: 'And do not bring us into testing, but rescue us from the evil one.', words: [
+        ['καὶ','kai','and'],
+        ['μὴ','mē','not'],
+        ['εἰσενέγκῃς','eisenenkēs','may you bring — aorist subjunctive of εἰσφέρω; μή + aorist subjunctive is how Greek says "do not…"'],
+        ['ἡμᾶς','hēmas','us — accusative'],
+        ['εἰς','eis','into'],
+        ['πειρασμόν,','peirasmon','testing, temptation'],
+        ['ἀλλὰ','alla','but'],
+        ['ῥῦσαι','rhysai','rescue! deliver! — aorist middle imperative of ῥύομαι'],
+        ['ἡμᾶς','hēmas','us'],
+        ['ἀπὸ','apo','from'],
+        ['τοῦ','tou','the'],
+        ['πονηροῦ.','ponērou','evil (one) — genitive; either "evil" or "the evil one"'],
+      ]},
+    ],
+  },
+  john1john: {
+    title: 'God Is Light', ref: '1 John 1:5–9', level: 'Capstone · After Lesson 27',
+    verses: [
+      { v: 5, en: 'And this is the message which we have heard from him and announce to you: that God is light, and in him there is no darkness at all.', words: [
+        ['Καὶ','Kai','and'],
+        ['ἔστιν','estin','is — accented ἔστιν when it stands first: "there is"'],
+        ['αὕτη','hautē','this — feminine of οὗτος, agreeing with "message"'],
+        ['ἡ','hē','the'],
+        ['ἀγγελία','angelia','message, announcement'],
+        ['ἣν','hēn','which — feminine accusative relative pronoun'],
+        ['ἀκηκόαμεν','akēkoamen','we have heard — perfect of ἀκούω, with its reduplicated ἀκη- start'],
+        ['ἀπ᾽','ap’','from — ἀπό elided'],
+        ['αὐτοῦ','autou','him'],
+        ['καὶ','kai','and'],
+        ['ἀναγγέλλομεν','anangellomen','we announce — present of ἀναγγέλλω'],
+        ['ὑμῖν,','hymin','to you (plural) — dative'],
+        ['ὅτι','hoti','that — introducing the content of the message'],
+        ['ὁ','ho','the'],
+        ['θεὸς','theos','God'],
+        ['φῶς','phōs','light — predicate, without the article, like θεός in John 1:1'],
+        ['ἐστιν','estin','is'],
+        ['καὶ','kai','and'],
+        ['σκοτία','skotia','darkness'],
+        ['ἐν','en','in'],
+        ['αὐτῷ','autō','him — dative'],
+        ['οὐκ','ouk','not'],
+        ['ἔστιν','estin','is'],
+        ['οὐδεμία.','oudemia','none at all — a double negative, which Greek uses for emphasis: "no darkness, none"'],
+      ]},
+      { v: 6, en: 'If we say that we have fellowship with him and walk in the darkness, we lie and do not do the truth.', words: [
+        ['Ἐὰν','Ean','if — ἐάν + subjunctive: a live possibility'],
+        ['εἴπωμεν','eipōmen','we say — aorist subjunctive of λέγω'],
+        ['ὅτι','hoti','that'],
+        ['κοινωνίαν','koinōnian','fellowship, partnership — accusative of κοινωνία'],
+        ['ἔχομεν','echomen','we have'],
+        ['μετ᾽','met’','with — μετά + genitive, elided'],
+        ['αὐτοῦ','autou','him'],
+        ['καὶ','kai','and'],
+        ['ἐν','en','in'],
+        ['τῷ','tō','the'],
+        ['σκότει','skotei','darkness — dative of σκότος, a third-declension neuter'],
+        ['περιπατῶμεν,','peripatōmen','we walk — present subjunctive of περιπατέω; "walking" is life-conduct'],
+        ['ψευδόμεθα','pseudometha','we lie — middle of ψεύδομαι (whence "pseudo-")'],
+        ['καὶ','kai','and'],
+        ['οὐ','ou','not'],
+        ['ποιοῦμεν','poioumen','we do — present of ποιέω'],
+        ['τὴν','tēn','the'],
+        ['ἀλήθειαν·','alētheian','truth — accusative'],
+      ]},
+      { v: 7, en: 'But if we walk in the light, as he is in the light, we have fellowship with one another, and the blood of Jesus his Son cleanses us from all sin.', words: [
+        ['ἐὰν','ean','if'],
+        ['δὲ','de','but — postpositive'],
+        ['ἐν','en','in'],
+        ['τῷ','tō','the'],
+        ['φωτὶ','phōti','light — dative of φῶς'],
+        ['περιπατῶμεν','peripatōmen','we walk — subjunctive'],
+        ['ὡς','hōs','as'],
+        ['αὐτός','autos','he — emphatic'],
+        ['ἐστιν','estin','is'],
+        ['ἐν','en','in'],
+        ['τῷ','tō','the'],
+        ['φωτί,','phōti','light'],
+        ['κοινωνίαν','koinōnian','fellowship'],
+        ['ἔχομεν','echomen','we have'],
+        ['μετ᾽','met’','with'],
+        ['ἀλλήλων,','allēlōn','one another — genitive'],
+        ['καὶ','kai','and'],
+        ['τὸ','to','the'],
+        ['αἷμα','haima','blood — third-declension neuter'],
+        ['Ἰησοῦ','Iēsou','of Jesus — genitive'],
+        ['τοῦ','tou','the'],
+        ['υἱοῦ','huiou','Son — genitive, in apposition to Jesus'],
+        ['αὐτοῦ','autou','his'],
+        ['καθαρίζει','katharizei','cleanses — present of καθαρίζω (whence "catharsis")'],
+        ['ἡμᾶς','hēmas','us'],
+        ['ἀπὸ','apo','from'],
+        ['πάσης','pasēs','all, every — genitive feminine of πᾶς'],
+        ['ἁμαρτίας.','hamartias','sin — genitive'],
+      ]},
+      { v: 8, en: 'If we say that we have no sin, we deceive ourselves and the truth is not in us.', words: [
+        ['ἐὰν','ean','if'],
+        ['εἴπωμεν','eipōmen','we say — aorist subjunctive'],
+        ['ὅτι','hoti','that'],
+        ['ἁμαρτίαν','hamartian','sin — accusative'],
+        ['οὐκ','ouk','not'],
+        ['ἔχομεν,','echomen','we have'],
+        ['ἑαυτοὺς','heautous','ourselves — reflexive pronoun, accusative'],
+        ['πλανῶμεν','planōmen','we deceive, lead astray — from πλανάω (whence "planet," the wandering star)'],
+        ['καὶ','kai','and'],
+        ['ἡ','hē','the'],
+        ['ἀλήθεια','alētheia','truth'],
+        ['οὐκ','ouk','not'],
+        ['ἔστιν','estin','is'],
+        ['ἐν','en','in'],
+        ['ἡμῖν.','hēmin','us — dative'],
+      ]},
+      { v: 9, en: 'If we confess our sins, he is faithful and just, so that he will forgive us our sins and cleanse us from all unrighteousness.', words: [
+        ['ἐὰν','ean','if'],
+        ['ὁμολογῶμεν','homologōmen','we confess — present subjunctive of ὁμολογέω, literally "say the same thing"'],
+        ['τὰς','tas','the — accusative feminine plural'],
+        ['ἁμαρτίας','hamartias','sins — accusative plural'],
+        ['ἡμῶν,','hēmōn','our'],
+        ['πιστός','pistos','faithful — predicate adjective'],
+        ['ἐστιν','estin','he is'],
+        ['καὶ','kai','and'],
+        ['δίκαιος,','dikaios','just, righteous'],
+        ['ἵνα','hina','so that — + subjunctive'],
+        ['ἀφῇ','aphē','he may forgive — aorist subjunctive of ἀφίημι'],
+        ['ἡμῖν','hēmin','us — dative'],
+        ['τὰς','tas','the'],
+        ['ἁμαρτίας','hamartias','sins'],
+        ['καὶ','kai','and'],
+        ['καθαρίσῃ','katharisē','may cleanse — aorist subjunctive of καθαρίζω'],
+        ['ἡμᾶς','hēmas','us'],
+        ['ἀπὸ','apo','from'],
+        ['πάσης','pasēs','all'],
+        ['ἀδικίας.','adikias','unrighteousness — ἀ- (not) + δίκη (justice)'],
+      ]},
+    ],
+  },
+};
+
+/* ============================================================
+   Data: verse drill (short famous verses; tier = unlocked feel)
+============================================================ */
+const SENTENCES = [
+  { gk:'Ἰησοῦς ἐδάκρυσεν.', ref:'John 11:35', en:'Jesus wept.', note:'ἐδάκρυσεν — aorist of δακρύω: the shortest verse in the Bible.', tier:1 },
+  { gk:'ὁ θεὸς ἀγάπη ἐστίν.', ref:'1 John 4:8', en:'God is love.', note:'ἀγάπη has no article — it is the predicate: God is love, not love is God.', tier:1 },
+  { gk:'ἐγὼ καὶ ὁ πατὴρ ἕν ἐσμεν.', ref:'John 10:30', en:'I and the Father are one.', note:'ἕν is neuter "one thing" — one in essence, not one person.', tier:1 },
+  { gk:'ὑμεῖς ἐστε τὸ φῶς τοῦ κόσμου.', ref:'Matthew 5:14', en:'You are the light of the world.', note:'ὑμεῖς — plural and emphatic: you all.', tier:1 },
+  { gk:'ὁ κύριος ἐγγύς.', ref:'Philippians 4:5', en:'The Lord is near.', note:'The verb "is" is simply omitted — very common in Greek.', tier:1 },
+  { gk:'σὺ εἶ ὁ χριστός.', ref:'Mark 8:29', en:'You are the Christ.', note:'Peter’s confession. σὺ εἶ — "you are," 2nd singular of εἰμί.', tier:1 },
+  { gk:'ἐγώ εἰμι ἡ ἄμπελος, ὑμεῖς τὰ κλήματα.', ref:'John 15:5', en:'I am the vine; you are the branches.', note:'The second clause omits the verb — supply "are."', tier:1 },
+  { gk:'ὁ λόγος σὰρξ ἐγένετο.', ref:'John 1:14', en:'The Word became flesh.', note:'ἐγένετο — aorist of γίνομαι: the incarnation in three words.', tier:2 },
+  { gk:'ἐν ἀρχῇ ἐποίησεν ὁ θεὸς τὸν οὐρανὸν καὶ τὴν γῆν.', ref:'Genesis 1:1 (LXX)', en:'In the beginning God made the heaven and the earth.', note:'The Septuagint — the Greek Old Testament the apostles quoted.', tier:2 },
+  { gk:'Κύριε, σῶσόν με.', ref:'Matthew 14:30', en:'Lord, save me!', note:'Κύριε — vocative; σῶσον — aorist imperative of σῴζω. Peter, sinking.', tier:2 },
+  { gk:'ἡ πίστις σου σέσωκέν σε.', ref:'Mark 5:34', en:'Your faith has saved you.', note:'σέσωκεν — perfect tense: saved, with the result still standing.', tier:2 },
+  { gk:'Οὕτως γὰρ ἠγάπησεν ὁ θεὸς τὸν κόσμον…', ref:'John 3:16', en:'For God so loved the world…', note:'ἠγάπησεν — aorist of ἀγαπάω; the augment turned α into η.', tier:2 },
+  { gk:'τὸ πνεῦμα πρόθυμον, ἡ δὲ σὰρξ ἀσθενής.', ref:'Matthew 26:41', en:'The spirit is willing, but the flesh is weak.', note:'Both clauses omit "is." δέ stands second, as always.', tier:2 },
+  { gk:'μὴ φοβοῦ, μόνον πίστευε.', ref:'Mark 5:36', en:'Do not fear; only believe.', note:'Two present imperatives: stop fearing (ongoing), keep believing.', tier:3 },
+  { gk:'πάντοτε χαίρετε, ἀδιαλείπτως προσεύχεσθε.', ref:'1 Thessalonians 5:16–17', en:'Rejoice always; pray without ceasing.', note:'Present imperatives: continuous commands.', tier:3 },
+  { gk:'ἀγαπήσεις τὸν πλησίον σου ὡς σεαυτόν.', ref:'Matthew 22:39', en:'You shall love your neighbor as yourself.', note:'ἀγαπήσεις — future used as a command, echoing the Ten Commandments.', tier:3 },
+  { gk:'ἠγέρθη, οὐκ ἔστιν ὧδε.', ref:'Mark 16:6', en:'He was raised; he is not here.', note:'ἠγέρθη — aorist passive of ἐγείρω: the Easter announcement.', tier:3 },
+  { gk:'ἡ ἀγάπη οὐδέποτε πίπτει.', ref:'1 Corinthians 13:8', en:'Love never fails.', note:'πίπτει — literally "falls." Present tense: never, at any time.', tier:3 },
+  { gk:'εἰρήνην ἀφίημι ὑμῖν, εἰρήνην τὴν ἐμὴν δίδωμι ὑμῖν.', ref:'John 14:27', en:'Peace I leave with you; my peace I give to you.', note:'The objects stand first for emphasis — Greek word order at work.', tier:3 },
+  { gk:'ἀκολούθει μοι.', ref:'Matthew 9:9', en:'Follow me.', note:'Present imperative + dative: keep following, as a way of life.', tier:3 },
 ];
 
 /* ============================================================
@@ -1117,7 +1706,7 @@ const LESSONS = [
       <p>This is the moment the previous seven lessons were building toward: the opening of John's
       Gospel, in the original, read with your own eyes. <strong>Tap any word</strong> for its
       pronunciation and grammar. Read each verse aloud first, then work through the words.</p>
-      ${interlinearHTML()}
+      ${interlinearHTML('john1')}
       <h3>What only the Greek shows you</h3>
       <p><strong>The famous third clause.</strong> <span class="gk">καὶ θεὸς ἦν ὁ λόγος</span> — literally
       "and God was the Word." How do we know it means "the Word was God" and not "God was the Word"?
@@ -1143,12 +1732,853 @@ const LESSONS = [
     ],
   },
   {
+    id: 'pronouns', glyph: 'ἐγ', title: 'Personal Pronouns & αὐτός',
+    blurb: 'I, you, and the many jobs of αὐτός.',
+    body: () => `
+      <p>Because Greek verb endings already say who acts, pronouns appear mainly for
+      <em>emphasis</em> or in cases other than the subject. When Jesus says
+      <span class="gk">Ἐγώ εἰμι τὸ φῶς τοῦ κόσμου</span>, the <span class="gk">ἐγώ</span> is not
+      needed grammatically — its presence is the emphasis: <em>I</em> am the light.</p>
+      <h3>First person: <span class="gk">ἐγώ</span> (I) · <span class="gk">ἡμεῖς</span> (we)</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Case</th><th>Singular</th><th>Plural</th></tr>
+        <tr><td>Nom.</td><td class="gk">ἐγώ</td><td class="gk">ἡμεῖς</td></tr>
+        <tr><td>Gen.</td><td class="gk">μου (ἐμοῦ)</td><td class="gk">ἡμῶν</td></tr>
+        <tr><td>Dat.</td><td class="gk">μοι (ἐμοί)</td><td class="gk">ἡμῖν</td></tr>
+        <tr><td>Acc.</td><td class="gk">με (ἐμέ)</td><td class="gk">ἡμᾶς</td></tr>
+      </table></div>
+      <h3>Second person: <span class="gk">σύ</span> (you) · <span class="gk">ὑμεῖς</span> (you all)</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Case</th><th>Singular</th><th>Plural</th></tr>
+        <tr><td>Nom.</td><td class="gk">σύ</td><td class="gk">ὑμεῖς</td></tr>
+        <tr><td>Gen.</td><td class="gk">σου</td><td class="gk">ὑμῶν</td></tr>
+        <tr><td>Dat.</td><td class="gk">σοι</td><td class="gk">ὑμῖν</td></tr>
+        <tr><td>Acc.</td><td class="gk">σε</td><td class="gk">ὑμᾶς</td></tr>
+      </table></div>
+      <p>The longer forms (<span class="gk">ἐμοῦ, ἐμοί, ἐμέ</span>) are the emphatic ones and the ones
+      used after prepositions: <span class="gk">δι᾽ ἐμοῦ</span>, "through <em>me</em>."
+      The genitive makes possession: <span class="gk">ὁ κύριός μου</span> — "my Lord";
+      <span class="gk">τὸ ὄνομά σου</span> — "your name."</p>
+      <div class="callout"><strong>Watch the breathing marks.</strong>
+      <span class="gk">ἡμεῖς</span> (rough — "we") vs. <span class="gk">ὑμεῖς</span> (also rough — "you all"):
+      the real difference is the first letter, η vs. υ. Mixing up "we" and "you" is the classic
+      first-year error — sound them out: <em>hēmeis</em> vs. <em>hymeis</em>.</div>
+      <h3>The three uses of <span class="gk">αὐτός</span></h3>
+      <ul>
+        <li><strong>Pronoun</strong> (its usual job, in any case but rarely nominative):
+          <span class="gk">λέγει αὐτῷ</span> — "he says <em>to him</em>";
+          <span class="gk">ὁ λόγος αὐτοῦ</span> — "<em>his</em> word."</li>
+        <li><strong>Intensive</strong> (with a noun, outside the article):
+          <span class="gk">αὐτὸς ὁ κύριος</span> — "the Lord <em>himself</em>."</li>
+        <li><strong>Identical</strong> (inside the article):
+          <span class="gk">ὁ αὐτὸς λόγος</span> — "the <em>same</em> word."</li>
+      </ul>
+      <p><span class="gk">αὐτός</span> declines exactly like the article-plus-λόγος pattern you know:
+      <span class="gk">αὐτός, αὐτοῦ, αὐτῷ, αὐτόν…</span> — you have already met
+      <span class="gk">δι᾽ αὐτοῦ</span> and <span class="gk">ἐν αὐτῷ</span> in John 1.</p>`,
+    quiz: [
+      { q:'In <span class="gk">Ἐγώ εἰμι τὸ φῶς</span>, why is <span class="gk">ἐγώ</span> written out?', a:'For emphasis — the verb ending already means "I"', wrong:['It is grammatically required','To mark a question','Because εἰμί is irregular'] },
+      { q:'<span class="gk">τὸ ὄνομά σου</span> means…', a:'your name', wrong:['my name','his name','our name'] },
+      { q:'<span class="gk">ἡμῖν</span> means…', a:'to us (dative)', wrong:['to you all','of us','we (subject)'] },
+      { q:'<span class="gk">αὐτὸς ὁ κύριος</span> means…', a:'the Lord himself', wrong:['the same Lord','his Lord','he is the Lord'] },
+      { q:'<span class="gk">λέγει αὐτοῖς</span> means…', a:'he says to them', wrong:['he says to him','they say','he says the same thing'] },
+    ],
+  },
+  {
+    id: 'adjectives', glyph: 'κα', title: 'Adjectives & Their Positions',
+    blurb: 'Good, holy, faithful — and why position changes meaning.',
+    body: () => `
+      <p>A Greek adjective agrees with its noun in gender, number, and case — and its endings are
+      the article-like endings you already know: <span class="gk">ἀγαθός, ἀγαθή, ἀγαθόν</span>
+      (good) declines just like <span class="gk">λόγος / ἀρχή / ἔργον</span>.</p>
+      <h3>Position is meaning</h3>
+      <p>Where the adjective stands relative to the article decides what the phrase says:</p>
+      <ul>
+        <li><strong>Attributive</strong> — inside the article's embrace; simply describes:
+          <span class="gk">ὁ ἀγαθὸς λόγος</span> or <span class="gk">ὁ λόγος ὁ ἀγαθός</span> —
+          "the good word." (The second form, with the article repeated, is the one in
+          <span class="gk">ὁ ποιμὴν ὁ καλός</span>, "the good shepherd.")</li>
+        <li><strong>Predicate</strong> — outside the article; makes an assertion, with no verb needed:
+          <span class="gk">ἀγαθὸς ὁ λόγος</span> or <span class="gk">ὁ λόγος ἀγαθός</span> —
+          "the word <em>is</em> good."</li>
+        <li><strong>Substantival</strong> — article + adjective, no noun at all:
+          <span class="gk">οἱ ἅγιοι</span> — "the holy ones," "the saints";
+          <span class="gk">οἱ νεκροί</span> — "the dead."</li>
+      </ul>
+      <div class="callout"><strong>This matters for reading.</strong> An entire clause like
+      <span class="gk">πιστὸς ὁ θεός</span> (1 Cor 1:9) is a complete sentence: "God is faithful."
+      No verb in sight — the predicate position <em>is</em> the verb.</div>
+      <h3>Core adjectives</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Greek</th><th>Meaning</th><th>Greek</th><th>Meaning</th></tr>
+        <tr><td class="gk">ἀγαθός, -ή, -όν</td><td>good</td><td class="gk">καλός, -ή, -όν</td><td>good, beautiful, noble</td></tr>
+        <tr><td class="gk">πιστός, -ή, -όν</td><td>faithful, believing</td><td class="gk">ἅγιος, -α, -ον</td><td>holy</td></tr>
+        <tr><td class="gk">νεκρός, -ά, -όν</td><td>dead</td><td class="gk">αἰώνιος, -ον</td><td>eternal</td></tr>
+        <tr><td class="gk">ἴδιος, -α, -ον</td><td>one's own</td><td class="gk">ἄλλος, -η, -ο</td><td>other, another</td></tr>
+        <tr><td class="gk">ὅλος, -η, -ον</td><td>whole, entire</td><td class="gk">μόνος, -η, -ον</td><td>only, alone</td></tr>
+      </table></div>
+      <p>Note <span class="gk">αἰώνιος</span>: some adjectives use the same form for masculine and
+      feminine — so <span class="gk">ζωὴ αἰώνιος</span>, "eternal life," is correct Greek even though
+      <span class="gk">ζωή</span> is feminine.</p>
+      <h3>Read these</h3>
+      <ul>
+        <li><span class="gk">ὁ νόμος ἅγιος.</span> <span class="gloss">The law is holy. (Rom 7:12)</span></li>
+        <li><span class="gk">καλὸν τὸ ἔργον.</span> <span class="gloss">The work is good.</span></li>
+        <li><span class="gk">ἔχομεν ζωὴν αἰώνιον.</span> <span class="gloss">We have eternal life.</span></li>
+      </ul>`,
+    quiz: [
+      { q:'<span class="gk">ὁ λόγος ὁ ἀγαθός</span> means…', a:'the good word', wrong:['the word is good','a good word (no article)','the word of the good'] },
+      { q:'<span class="gk">πιστὸς ὁ θεός</span> means…', a:'God is faithful — predicate position', wrong:['the faithful God','of the faithful God','believe in God'] },
+      { q:'<span class="gk">οἱ ἅγιοι</span>, with no noun, means…', a:'the holy ones, the saints', wrong:['holiness','the holy word','he is holy'] },
+      { q:'An adjective must agree with its noun in…', a:'gender, number, and case', wrong:['gender only','position only','tense and voice'] },
+      { q:'<span class="gk">ζωὴ αἰώνιος</span> is correct because…', a:'αἰώνιος uses one form for masculine and feminine', wrong:['ζωή is masculine','adjectives never agree','it is a fixed idiom with no grammar'] },
+    ],
+  },
+  {
+    id: 'iam', glyph: 'φῶ', title: 'Reading: The “I AM” Sayings',
+    blurb: 'Seven words of Jesus you can now read unaided.',
+    body: () => `
+      <p>John's Gospel is built around a series of <span class="gk">Ἐγώ εἰμι</span> — "I AM" —
+      sayings, which echo God's self-naming in Exodus 3:14 (<span class="gk">Ἐγώ εἰμι ὁ ὤν</span>,
+      "I am the One who is," in the Greek Old Testament). You now know every piece of grammar
+      they use: emphatic pronoun, εἰμί, article, genitive, and the adjective positions from the
+      last lesson. Read each aloud before tapping.</p>
+      ${interlinearHTML('iam')}
+      <h3>Notice</h3>
+      <ul>
+        <li><span class="gk">ὁ ποιμὴν ὁ καλός</span> — the repeated-article attributive position
+          from Lesson 10, live in scripture.</li>
+        <li><span class="gk">εἰ μή</span> — literally "if not," an idiom meaning <em>except</em>.</li>
+        <li><span class="gk">οὐδείς</span> — "no one," built from <span class="gk">οὐδὲ εἷς</span>,
+          "not even one" — which you met in John 1:3.</li>
+      </ul>
+      <div class="callout"><strong>Memory work.</strong> Pick one saying and memorize it in Greek.
+      Being able to <em>say</em> real scripture from memory changes your relationship to the
+      language — it stops being a puzzle and starts being a voice.</div>`,
+    quiz: [
+      { q:'<span class="gk">Ἐγώ εἰμι ὁ ἄρτος τῆς ζωῆς</span> means…', a:'I am the bread of life', wrong:['I am the life of the world','I have the bread of life','The bread of life is mine'] },
+      { q:'<span class="gk">εἰ μή</span> as an idiom means…', a:'except', wrong:['if only','unless… not','never'] },
+      { q:'In <span class="gk">ὁ ποιμὴν ὁ καλός</span>, the repeated article marks…', a:'The attributive position: "the good shepherd"', wrong:['A question','Two different shepherds','The predicate: "the shepherd is good"'] },
+      { q:'<span class="gk">οὐδεὶς ἔρχεται πρὸς τὸν πατέρα</span> means…', a:'no one comes to the Father', wrong:['someone comes to the Father','he does not come to a father','the Father comes to no one'] },
+      { q:'The "I AM" sayings echo which Old Testament moment?', a:'God’s self-naming at the burning bush (Exodus 3:14)', wrong:['The creation account','The giving of the Ten Commandments','David and Goliath'] },
+    ],
+  },
+  {
+    id: 'imperfect', glyph: 'ἦν', title: 'The Imperfect Tense',
+    blurb: 'Ongoing past action — and the augment that signals it.',
+    body: () => `
+      <p>Greek has two main past tenses, and the difference between them is one of the joys of
+      reading the New Testament. The <strong>imperfect</strong> paints the past as
+      <em>ongoing, repeated, or continuous</em> — a movie, not a snapshot:
+      <span class="gk">ἐδίδασκεν</span>, "he was teaching / he used to teach."</p>
+      <h3>The augment</h3>
+      <p>Past time is marked by an <strong>augment</strong> on the front of the verb —
+      usually the letter <span class="gk">ε</span>: <span class="gk">λύω → ἔλυον</span>.
+      If the verb begins with a vowel, the augment lengthens it instead:
+      <span class="gk">ἀκούω → ἤκουον</span> (α → η), <span class="gk">ἐγείρω → ἠγειρ-</span>.
+      When you see a verb starting with <span class="gk">ἐ-</span> or a long
+      <span class="gk">ἠ-</span>, think: <em>past tense</em>.</p>
+      <h3>Imperfect active: <span class="gk">ἔλυον</span> (I was loosing)</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Person</th><th>Singular</th><th>Plural</th></tr>
+        <tr><td>1st</td><td class="gk">ἔλυον</td><td class="gk">ἐλύομεν</td></tr>
+        <tr><td>2nd</td><td class="gk">ἔλυες</td><td class="gk">ἐλύετε</td></tr>
+        <tr><td>3rd</td><td class="gk">ἔλυε(ν)</td><td class="gk">ἔλυον</td></tr>
+      </table></div>
+      <p>Yes — 1st singular and 3rd plural are identical (<span class="gk">ἔλυον</span>);
+      context decides. Note <span class="gk">εἶχον</span>, the irregular imperfect of
+      <span class="gk">ἔχω</span> ("I had / they had").</p>
+      <h3>Imperfect of <span class="gk">εἰμί</span></h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Person</th><th>Singular</th><th>Plural</th></tr>
+        <tr><td>1st</td><td class="gk">ἤμην <span class="gloss">I was</span></td><td class="gk">ἦμεν <span class="gloss">we were</span></td></tr>
+        <tr><td>2nd</td><td class="gk">ἦς <span class="gloss">you were</span></td><td class="gk">ἦτε <span class="gloss">you all were</span></td></tr>
+        <tr><td>3rd</td><td class="gk">ἦν <span class="gloss">he/she/it was</span></td><td class="gk">ἦσαν <span class="gloss">they were</span></td></tr>
+      </table></div>
+      <p>There is <span class="gk">ἦν</span> again — the "was" of John 1:1 is an imperfect:
+      continuous existence, with no starting point in view. John chose his tense with care.</p>
+      <h3>Read these</h3>
+      <ul>
+        <li><span class="gk">ἐδίδασκεν αὐτοὺς ἐν παραβολαῖς.</span> <span class="gloss">He was teaching them in parables. (cf. Mark 4:2)</span></li>
+        <li><span class="gk">ὁ Ἰωάννης εἶχεν μαθητάς.</span> <span class="gloss">John had disciples.</span></li>
+        <li><span class="gk">ἦσαν ἐν τῷ κόσμῳ.</span> <span class="gloss">They were in the world.</span></li>
+      </ul>`,
+    quiz: [
+      { q:'The imperfect tense presents past action as…', a:'Ongoing or repeated — a movie, not a snapshot', wrong:['Completed once for all','Future from a past viewpoint','Timeless'] },
+      { q:'The augment on <span class="gk">ἔλυον</span> is…', a:'The ε- prefix marking past time', wrong:['The -ον ending','The accent','The λυ- stem'] },
+      { q:'What happens when <span class="gk">ἀκούω</span> takes an augment?', a:'The α lengthens to η: ἤκουον', wrong:['It gains an ε: ἐακούω','Nothing changes','The ω drops off'] },
+      { q:'<span class="gk">ἦσαν</span> means…', a:'they were', wrong:['he was','we were','you all were'] },
+      { q:'<span class="gk">ἔλυον</span> can mean either…', a:'"I was loosing" or "they were loosing"', wrong:['"I loose" or "you loose"','"he was loosing" or "she was loosing"','"we loosed" or "you loosed"'] },
+    ],
+  },
+  {
+    id: 'demonstratives', glyph: 'οὗ', title: 'Demonstratives: This & That',
+    blurb: 'οὗτος and ἐκεῖνος — pointing words.',
+    body: () => `
+      <p>Greek points near and far: <span class="gk">οὗτος</span> "this" (near) and
+      <span class="gk">ἐκεῖνος</span> "that" (far). You met <span class="gk">οὗτος</span> in
+      John 1:2 — <span class="gk">οὗτος ἦν ἐν ἀρχῇ</span>, "<em>this one</em> was in the beginning."</p>
+      <h3><span class="gk">οὗτος, αὕτη, τοῦτο</span> (this)</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Case</th><th>Masc.</th><th>Fem.</th><th>Neut.</th></tr>
+        <tr><td>Nom. sg</td><td class="gk">οὗτος</td><td class="gk">αὕτη</td><td class="gk">τοῦτο</td></tr>
+        <tr><td>Gen. sg</td><td class="gk">τούτου</td><td class="gk">ταύτης</td><td class="gk">τούτου</td></tr>
+        <tr><td>Dat. sg</td><td class="gk">τούτῳ</td><td class="gk">ταύτῃ</td><td class="gk">τούτῳ</td></tr>
+        <tr><td>Acc. sg</td><td class="gk">τοῦτον</td><td class="gk">ταύτην</td><td class="gk">τοῦτο</td></tr>
+        <tr><td>Nom. pl</td><td class="gk">οὗτοι</td><td class="gk">αὗται</td><td class="gk">ταῦτα</td></tr>
+      </table></div>
+      <p>The endings are the familiar article-pattern endings; the stem alternates between
+      <span class="gk">τουτ-</span> and <span class="gk">ταυτ-</span> (whichever matches the
+      ending's vowel class). <span class="gk">ἐκεῖνος, ἐκείνη, ἐκεῖνο</span> (that) declines the
+      same way with no surprises.</p>
+      <div class="callout"><strong>Two look-alikes to keep apart:</strong>
+      <span class="gk">αὕτη</span> (rough breathing — "this," feminine) vs.
+      <span class="gk">αὐτή</span> (smooth breathing — "she"). The breathing mark is the only
+      visible difference. This is why Lesson 2 mattered.</div>
+      <h3>Demonstratives with nouns</h3>
+      <p>With a noun, the demonstrative stands in the <em>predicate</em> position (outside the
+      article) but still means a simple "this/that":</p>
+      <ul>
+        <li><span class="gk">οὗτος ὁ ἄνθρωπος</span> — "this man"</li>
+        <li><span class="gk">ἐν ταύτῃ τῇ ἡμέρᾳ</span> — "on this day"</li>
+        <li><span class="gk">ἐκεῖνος ὁ κόσμος</span> — "that world"</li>
+      </ul>
+      <p>Alone, they act as pronouns: <span class="gk">ταῦτα λέγω</span> — "I say these things";
+      <span class="gk">μετὰ ταῦτα</span> — "after these things" (a favorite transition in John).</p>
+      <h3>Read these</h3>
+      <ul>
+        <li><span class="gk">οὗτός ἐστιν ὁ υἱός μου ὁ ἀγαπητός.</span> <span class="gloss">This is my beloved Son. (Matt 3:17)</span></li>
+        <li><span class="gk">ταῦτα γράφομεν ὑμῖν.</span> <span class="gloss">We write these things to you.</span></li>
+      </ul>`,
+    quiz: [
+      { q:'<span class="gk">οὗτος ὁ ἄνθρωπος</span> means…', a:'this man', wrong:['the man himself','that man','a certain man'] },
+      { q:'<span class="gk">ταῦτα</span> means…', a:'these things (neuter plural)', wrong:['this woman','those men','the same things'] },
+      { q:'How do <span class="gk">αὕτη</span> ("this") and <span class="gk">αὐτή</span> ("she") differ in writing?', a:'The breathing mark — rough vs. smooth', wrong:['The accent only','The final letter','They are written identically'] },
+      { q:'<span class="gk">μετὰ ταῦτα</span> means…', a:'after these things', wrong:['with this man','before these things','because of that'] },
+      { q:'"That" (far demonstrative) is…', a:'<span class="gk">ἐκεῖνος</span>', wrong:['<span class="gk">οὗτος</span>','<span class="gk">αὐτός</span>','<span class="gk">ὅς</span>'] },
+    ],
+  },
+  {
+    id: 'future', glyph: 'σω', title: 'The Future Tense',
+    blurb: 'One letter — sigma — carries tomorrow.',
+    body: () => `
+      <p>The future is the friendliest tense in Greek: take the present, insert a
+      <span class="gk">σ</span> before the endings. <span class="gk">λύω → λύσω</span>,
+      "I will loose." The endings themselves are the present endings you already chant.</p>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Person</th><th>Singular</th><th>Plural</th></tr>
+        <tr><td>1st</td><td class="gk">λύσω</td><td class="gk">λύσομεν</td></tr>
+        <tr><td>2nd</td><td class="gk">λύσεις</td><td class="gk">λύσετε</td></tr>
+        <tr><td>3rd</td><td class="gk">λύσει</td><td class="gk">λύσουσι(ν)</td></tr>
+      </table></div>
+      <h3>When sigma meets a consonant</h3>
+      <p>Stem-final consonants fuse with the σ, exactly as in the alphabet's double letters:</p>
+      <ul>
+        <li>π, β, φ + σ → <span class="gk">ψ</span>: <span class="gk">πέμπω → πέμψω</span> (I will send)</li>
+        <li>κ, γ, χ + σ → <span class="gk">ξ</span>: <span class="gk">ἄγω → ἄξω</span> (I will lead)</li>
+        <li>τ, δ, θ + σ → σ alone: <span class="gk">βαπτίζω → βαπτίσω</span> (I will baptize)</li>
+      </ul>
+      <h3>Futures worth knowing on sight</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Present</th><th>Future</th><th>Meaning</th></tr>
+        <tr><td class="gk">εἰμί</td><td class="gk">ἔσομαι, ἔσται</td><td>I will be, he will be</td></tr>
+        <tr><td class="gk">λέγω</td><td class="gk">ἐρῶ</td><td>I will say</td></tr>
+        <tr><td class="gk">ἔρχομαι</td><td class="gk">ἐλεύσομαι</td><td>I will come</td></tr>
+        <tr><td class="gk">γινώσκω</td><td class="gk">γνώσομαι</td><td>I will know</td></tr>
+        <tr><td class="gk">λαμβάνω</td><td class="gk">λήμψομαι</td><td>I will receive</td></tr>
+      </table></div>
+      <p>Several of these futures end in <span class="gk">-ομαι</span> — middle-voice endings, which
+      the next lessons will explain. For now, recognize them as futures and read on.</p>
+      <h3>Read these</h3>
+      <ul>
+        <li><span class="gk">αὐτὸς ὑμᾶς βαπτίσει ἐν πνεύματι ἁγίῳ.</span> <span class="gloss">He will baptize you in the Holy Spirit. (cf. Mark 1:8)</span></li>
+        <li><span class="gk">γνώσεσθε τὴν ἀλήθειαν.</span> <span class="gloss">You will know the truth. (John 8:32)</span></li>
+        <li><span class="gk">ἔσται μεθ᾽ ἡμῶν.</span> <span class="gloss">He will be with us.</span></li>
+      </ul>`,
+    quiz: [
+      { q:'The regular sign of the future tense is…', a:'A σ before the endings: λύσω', wrong:['An augment: ἔλυσω','Reduplication: λελύω','A change of accent only'] },
+      { q:'<span class="gk">πέμπω</span> (I send) becomes which future?', a:'<span class="gk">πέμψω</span> — π + σ = ψ', wrong:['<span class="gk">πέμσω</span>','<span class="gk">ἔπεμπον</span>','<span class="gk">πέμξω</span>'] },
+      { q:'<span class="gk">ἔσται</span> means…', a:'he/she/it will be', wrong:['he was','he is','they will be'] },
+      { q:'<span class="gk">γνώσεσθε τὴν ἀλήθειαν</span> means…', a:'you will know the truth', wrong:['you knew the truth','know the truth!','the truth will know you'] },
+      { q:'The future of <span class="gk">λέγω</span> is the irregular…', a:'<span class="gk">ἐρῶ</span>', wrong:['<span class="gk">λέξω</span> only','<span class="gk">ἔλεγον</span>','<span class="gk">λέγσω</span>'] },
+    ],
+  },
+  {
+    id: 'aorist1', glyph: 'σα', title: 'The First Aorist',
+    blurb: 'The snapshot past — the workhorse tense of narrative.',
+    body: () => `
+      <p>The <strong>aorist</strong> is the most common past tense in the New Testament: it presents
+      an action as a single whole — a snapshot. <span class="gk">ἐδίδαξεν</span>, "he taught"
+      (that happened); contrast the imperfect <span class="gk">ἐδίδασκεν</span>, "he was teaching"
+      (watch it happening). Narrative is written in the aorist.</p>
+      <h3>The recipe: augment + stem + σα</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Person</th><th>Singular</th><th>Plural</th></tr>
+        <tr><td>1st</td><td class="gk">ἔλυσα <span class="gloss">I loosed</span></td><td class="gk">ἐλύσαμεν</td></tr>
+        <tr><td>2nd</td><td class="gk">ἔλυσας</td><td class="gk">ἐλύσατε</td></tr>
+        <tr><td>3rd</td><td class="gk">ἔλυσε(ν)</td><td class="gk">ἔλυσαν</td></tr>
+      </table></div>
+      <p>The σ fuses with stem consonants just as in the future
+      (<span class="gk">ἔπεμψα</span>, I sent; <span class="gk">ἐδίδαξα</span>, I taught), and
+      vowel-start verbs lengthen instead of taking ε-:
+      <span class="gk">ἀκούω → ἤκουσα</span>, "I heard";
+      <span class="gk">ἀγαπάω → ἠγάπησα</span>, "I loved" — the very
+      <span class="gk">ἠγάπησεν</span> of John 3:16.</p>
+      <div class="callout"><strong>Don't over-translate.</strong> The aorist is not "punctiliar
+      magic" — it simply refuses to comment on duration. <span class="gk">ἐβασίλευσεν</span> can
+      cover a forty-year reign in one word: "he reigned." It's the unmarked, matter-of-fact past.</div>
+      <h3>Imperfect vs. aorist, side by side</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th></th><th>Imperfect</th><th>Aorist</th></tr>
+        <tr><td>Sign</td><td class="gk">augment + present stem</td><td class="gk">augment + σα</td></tr>
+        <tr><td>Feel</td><td>was doing, kept doing</td><td>did</td></tr>
+        <tr><td class="gk">πιστεύω</td><td class="gk">ἐπίστευον</td><td class="gk">ἐπίστευσα</td></tr>
+        <tr><td class="gk">ἀκούω</td><td class="gk">ἤκουον</td><td class="gk">ἤκουσα</td></tr>
+      </table></div>
+      <h3>Read these</h3>
+      <ul>
+        <li><span class="gk">ἐπίστευσεν ὁ ἄνθρωπος τῷ λόγῳ.</span> <span class="gloss">The man believed the word. (cf. John 4:50)</span></li>
+        <li><span class="gk">ἠκούσαμεν καὶ ἐπιστεύσαμεν.</span> <span class="gloss">We heard and we believed.</span></li>
+        <li><span class="gk">ἠγάπησεν ὁ θεὸς τὸν κόσμον.</span> <span class="gloss">God loved the world.</span></li>
+      </ul>`,
+    quiz: [
+      { q:'The first aorist is built from…', a:'augment + stem + σα endings', wrong:['σ + present endings','reduplication + κα','the bare stem'] },
+      { q:'<span class="gk">ἠκούσαμεν</span> means…', a:'we heard', wrong:['we were hearing','we will hear','they heard'] },
+      { q:'The difference between <span class="gk">ἐδίδασκεν</span> and <span class="gk">ἐδίδαξεν</span> is…', a:'was teaching (ongoing) vs. taught (snapshot)', wrong:['taught vs. will teach','he vs. they','active vs. passive'] },
+      { q:'<span class="gk">ἠγάπησεν</span> (John 3:16) is the aorist of…', a:'<span class="gk">ἀγαπάω</span> — I love', wrong:['<span class="gk">ἀκούω</span> — I hear','<span class="gk">ἄγω</span> — I lead','<span class="gk">ἁγιάζω</span> — I sanctify'] },
+      { q:'Narrative in the Gospels is mostly carried by…', a:'The aorist', wrong:['The future','The present','The pluperfect'] },
+    ],
+  },
+  {
+    id: 'aorist2', glyph: 'ἦλ', title: 'The Second Aorist',
+    blurb: 'εἶπεν, ἦλθεν, ἔλαβεν — the irregular past you meet constantly.',
+    body: () => `
+      <p>Many of the most common verbs refuse the σα recipe. Instead they form the aorist with a
+      <em>changed stem</em> plus the imperfect-style endings — the <strong>second aorist</strong>.
+      English does the same thing: not "runned" but <em>ran</em>, not "seed" but <em>saw</em>.</p>
+      <h3>The ones you cannot read a page without</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Present</th><th>Aorist (3rd sg)</th><th>Meaning</th></tr>
+        <tr><td class="gk">λέγω</td><td class="gk">εἶπεν</td><td>he said</td></tr>
+        <tr><td class="gk">ἔρχομαι</td><td class="gk">ἦλθεν</td><td>he came, went</td></tr>
+        <tr><td class="gk">λαμβάνω</td><td class="gk">ἔλαβεν</td><td>he took, received</td></tr>
+        <tr><td class="gk">ὁράω</td><td class="gk">εἶδεν</td><td>he saw</td></tr>
+        <tr><td class="gk">εὑρίσκω</td><td class="gk">εὗρεν</td><td>he found</td></tr>
+        <tr><td class="gk">γινώσκω</td><td class="gk">ἔγνω</td><td>he knew</td></tr>
+        <tr><td class="gk">γίνομαι</td><td class="gk">ἐγένετο</td><td>he/it became, it came to pass</td></tr>
+        <tr><td class="gk">βάλλω</td><td class="gk">ἔβαλεν</td><td>he threw</td></tr>
+        <tr><td class="gk">ἐσθίω</td><td class="gk">ἔφαγεν</td><td>he ate</td></tr>
+        <tr><td class="gk">δίδωμι</td><td class="gk">ἔδωκεν</td><td>he gave</td></tr>
+      </table></div>
+      <p>Learn these <em>as vocabulary</em> — each aorist stem is a new word for your deck. The
+      full endings follow the imperfect pattern: <span class="gk">εἶπον, εἶπες, εἶπεν,
+      εἴπομεν, εἴπατε, εἶπον</span>.</p>
+      <div class="callout"><strong>The most common sentence-opener in the Gospels:</strong>
+      <span class="gk">καὶ εἶπεν αὐτοῖς…</span> — "and he said to them…" You will meet it
+      hundreds of times. <span class="gk">καὶ ἐγένετο…</span> — "and it came to pass…" — opens
+      whole episodes, a Hebrew idiom wearing Greek clothes.</div>
+      <h3>Read these — real narrative</h3>
+      <ul>
+        <li><span class="gk">ἦλθεν Ἰησοῦς εἰς τὴν Γαλιλαίαν.</span> <span class="gloss">Jesus came into Galilee. (cf. Mark 1:14)</span></li>
+        <li><span class="gk">καὶ εἶπεν αὐτοῖς ὁ ἄγγελος…</span> <span class="gloss">And the angel said to them… (cf. Luke 2:10)</span></li>
+        <li><span class="gk">εὗρεν αὐτὸν καὶ εἶδεν τὴν δόξαν αὐτοῦ.</span> <span class="gloss">He found him and saw his glory.</span></li>
+      </ul>`,
+    quiz: [
+      { q:'A second aorist forms its past with…', a:'A changed stem + imperfect-style endings', wrong:['σα added to the present stem','Reduplication','A future stem'] },
+      { q:'<span class="gk">εἶπεν</span> is the aorist of…', a:'<span class="gk">λέγω</span> — he said', wrong:['<span class="gk">ὁράω</span> — he saw','<span class="gk">ἔρχομαι</span> — he came','<span class="gk">πίπτω</span> — he fell'] },
+      { q:'<span class="gk">ἦλθεν</span> means…', a:'he came', wrong:['he said','he was','he will come'] },
+      { q:'<span class="gk">καὶ ἐγένετο</span>, the great episode-opener, means…', a:'and it came to pass', wrong:['and he spoke','and behold','and immediately'] },
+      { q:'<span class="gk">εἶδεν</span> vs. <span class="gk">εὗρεν</span>:', a:'he saw vs. he found', wrong:['he found vs. he saw','he ate vs. he gave','he knew vs. he took'] },
+    ],
+  },
+  {
+    id: 'john1b', glyph: 'ἴδ', title: 'Reading: He Came to His Own',
+    blurb: 'John 1:10–12 — the prologue continues, and now it is narrative.',
+    body: () => `
+      <p>Back to where we left the prologue. These verses are dense with the aorists you just
+      learned: <span class="gk">ἔγνω</span> (γινώσκω), <span class="gk">ἦλθεν</span> (ἔρχομαι),
+      <span class="gk">ἔλαβον / παρέλαβον</span> (λαμβάνω), <span class="gk">ἔδωκεν</span> (δίδωμι).
+      Read aloud, then tap.</p>
+      ${interlinearHTML('john1b')}
+      <h3>What the Greek is doing</h3>
+      <p><strong>The tragedy is in the tenses.</strong> Verse 10 sets the scene with the imperfect
+      <span class="gk">ἦν</span> — he <em>was</em> in the world, continuously — then delivers the
+      blow with an aorist: <span class="gk">οὐκ ἔγνω</span>, the world "did not know" him. Snapshot,
+      final.</p>
+      <p><strong>A play on ἴδιος.</strong> <span class="gk">εἰς τὰ ἴδια</span> (neuter: his own
+      <em>home</em>) … <span class="gk">οἱ ἴδιοι</span> (masculine: his own <em>people</em>).
+      One adjective, two genders, and the whole sorrow of the verse lives in the shift.</p>
+      <p><strong>But (δέ).</strong> Verse 12 turns on the little postpositive
+      <span class="gk">δέ</span>: to <span class="gk">ὅσοι</span> — "as many as" — received him,
+      <span class="gk">ἔδωκεν ἐξουσίαν</span>, "he gave authority" to become
+      <span class="gk">τέκνα θεοῦ</span>, children of God.</p>
+      <div class="callout"><strong>Milestone check.</strong> You have now read John 1:1–5 and
+      1:10–12 in Greek. That is most of the prologue — read from the actual word order, feeling
+      the tenses, which no translation fully carries across.</div>`,
+    quiz: [
+      { q:'<span class="gk">ὁ κόσμος αὐτὸν οὐκ ἔγνω</span> means…', a:'the world did not know him', wrong:['the world did not receive him','he did not know the world','the world was not known'] },
+      { q:'The shift from <span class="gk">τὰ ἴδια</span> to <span class="gk">οἱ ἴδιοι</span> is…', a:'neuter "his own home" to masculine "his own people"', wrong:['singular to plural of the same word','a spelling variant','present to past tense'] },
+      { q:'<span class="gk">ὅσοι δὲ ἔλαβον αὐτόν</span> means…', a:'but as many as received him', wrong:['but those who left him','and no one received him','whoever will receive him'] },
+      { q:'<span class="gk">τέκνα θεοῦ</span> means…', a:'children of God', wrong:['the child of God','God’s servants','children, by God'] },
+      { q:'<span class="gk">ἔδωκεν</span> is the aorist of…', a:'<span class="gk">δίδωμι</span> — he gave', wrong:['<span class="gk">δοκέω</span> — he seemed','<span class="gk">διώκω</span> — he pursued','<span class="gk">δέχομαι</span> — he welcomed'] },
+    ],
+  },
+  {
+    id: 'middle', glyph: 'μαι', title: 'The Middle Voice & Deponents',
+    blurb: 'Why ἔρχομαι looks passive but means "I come."',
+    body: () => `
+      <p>Greek has a third voice between active and passive: the <strong>middle</strong>, where the
+      subject acts with reference to itself — for itself, on itself, or with self-involvement.
+      In practice, your first job is simply to <em>recognize the endings</em>:</p>
+      <h3>Present middle/passive endings</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Person</th><th>Singular</th><th>Plural</th></tr>
+        <tr><td>1st</td><td class="gk">-ομαι <span class="gloss">ἔρχομαι</span></td><td class="gk">-όμεθα <span class="gloss">ἐρχόμεθα</span></td></tr>
+        <tr><td>2nd</td><td class="gk">-ῃ <span class="gloss">ἔρχῃ</span></td><td class="gk">-εσθε <span class="gloss">ἔρχεσθε</span></td></tr>
+        <tr><td>3rd</td><td class="gk">-εται <span class="gloss">ἔρχεται</span></td><td class="gk">-ονται <span class="gloss">ἔρχονται</span></td></tr>
+      </table></div>
+      <h3>Deponent verbs: middle in form, active in meaning</h3>
+      <p>A large family of everyday verbs exists <em>only</em> in middle form yet translates as
+      plain active. You've already been using several:</p>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Verb</th><th>Meaning</th><th>Aorist (3rd sg)</th></tr>
+        <tr><td class="gk">ἔρχομαι</td><td>I come, go</td><td class="gk">ἦλθεν</td></tr>
+        <tr><td class="gk">γίνομαι</td><td>I become, happen</td><td class="gk">ἐγένετο</td></tr>
+        <tr><td class="gk">ἀποκρίνομαι</td><td>I answer</td><td class="gk">ἀπεκρίθη</td></tr>
+        <tr><td class="gk">δύναμαι</td><td>I am able, can</td><td class="gk">ἠδυνήθη</td></tr>
+        <tr><td class="gk">πορεύομαι</td><td>I go, travel</td><td class="gk">ἐπορεύθη</td></tr>
+        <tr><td class="gk">προσεύχομαι</td><td>I pray</td><td class="gk">προσηύξατο</td></tr>
+      </table></div>
+      <div class="callout"><strong>The Gospel formula.</strong>
+      <span class="gk">ἀπεκρίθη καὶ εἶπεν</span> — "he answered and said" — introduces speech on
+      nearly every page of John. Add <span class="gk">ἔρχεται</span> ("he comes," a vivid present
+      in narrative) and you can follow the rhythm of whole conversations.</div>
+      <h3>Read these</h3>
+      <ul>
+        <li><span class="gk">ἔρχεται εἰς τὴν οἰκίαν καὶ προσεύχεται.</span> <span class="gloss">He comes into the house and prays.</span></li>
+        <li><span class="gk">οὐ δύναμαι ἐγὼ ποιεῖν ἀπ᾽ ἐμαυτοῦ οὐδέν.</span> <span class="gloss">I am able to do nothing from myself. (cf. John 5:30)</span></li>
+        <li><span class="gk">ἀπεκρίθη αὐτοῖς ὁ Ἰησοῦς.</span> <span class="gloss">Jesus answered them.</span></li>
+      </ul>`,
+    quiz: [
+      { q:'A deponent verb is…', a:'Middle/passive in form but active in meaning', wrong:['A verb with no present tense','Always passive in meaning','A verb that lost its augment'] },
+      { q:'<span class="gk">ἔρχονται</span> means…', a:'they come', wrong:['they are brought','he comes','you all come'] },
+      { q:'<span class="gk">ἀπεκρίθη</span> means…', a:'he answered', wrong:['he asked','he prayed','he departed'] },
+      { q:'<span class="gk">δύναμαι</span> means…', a:'I am able, I can', wrong:['I pray','I go','I receive power'] },
+      { q:'The 3rd singular present middle ending is…', a:'<span class="gk">-εται</span>', wrong:['<span class="gk">-ει</span>','<span class="gk">-ονται</span>','<span class="gk">-ομεν</span>'] },
+    ],
+  },
+  {
+    id: 'thirddecl', glyph: 'πα', title: 'The Third Declension',
+    blurb: 'πατήρ, πνεῦμα, πίστις — find the stem in the genitive.',
+    body: () => `
+      <p>The third declension gathers every noun whose stem ends in a consonant (or ι/υ). It looks
+      chaotic until you learn its one secret: <strong>the nominative disguises the stem; the
+      genitive reveals it.</strong> That is why vocabulary lists always give both:
+      <span class="gk">σάρξ, σαρκός</span> — the stem is σαρκ-.</p>
+      <h3>One set of endings</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Case</th><th>Sg (m/f)</th><th>Pl (m/f)</th><th>Sg (neut)</th><th>Pl (neut)</th></tr>
+        <tr><td>Nom.</td><td class="gk">-ς or —</td><td class="gk">-ες</td><td class="gk">—</td><td class="gk">-α</td></tr>
+        <tr><td>Gen.</td><td class="gk">-ος</td><td class="gk">-ων</td><td class="gk">-ος</td><td class="gk">-ων</td></tr>
+        <tr><td>Dat.</td><td class="gk">-ι</td><td class="gk">-σι(ν)</td><td class="gk">-ι</td><td class="gk">-σι(ν)</td></tr>
+        <tr><td>Acc.</td><td class="gk">-α / -ν</td><td class="gk">-ας</td><td class="gk">—</td><td class="gk">-α</td></tr>
+      </table></div>
+      <h3>Four families to know</h3>
+      <ul>
+        <li><strong>Family words:</strong> <span class="gk">πατήρ, πατρός, ὁ</span> (father) —
+          so <span class="gk">πρὸς τὸν πατέρα</span>, "to the Father."
+          Likewise <span class="gk">μήτηρ</span> (mother), <span class="gk">ἀνήρ, ἀνδρός</span> (man, husband).</li>
+        <li><strong>-μα neuters:</strong> <span class="gk">πνεῦμα, πνεύματος, τό</span> (spirit);
+          <span class="gk">ὄνομα, ὀνόματος</span> (name); <span class="gk">σῶμα</span> (body);
+          <span class="gk">θέλημα</span> (will). All neuter, all with -ματ- stems.</li>
+        <li><strong>-ις feminines:</strong> <span class="gk">πίστις, πίστεως, ἡ</span> (faith);
+          <span class="gk">ἀνάστασις</span> (resurrection); <span class="gk">δύναμις</span> (power);
+          <span class="gk">κρίσις</span> (judgment).</li>
+        <li><strong>Consonant stems:</strong> <span class="gk">σάρξ, σαρκός, ἡ</span> (flesh);
+          <span class="gk">φῶς, φωτός, τό</span> (light); <span class="gk">χάρις, χάριτος, ἡ</span> (grace);
+          <span class="gk">βασιλεύς, βασιλέως, ὁ</span> (king).</li>
+      </ul>
+      <div class="callout"><strong>The article never lies.</strong> Third-declension endings are
+      ambiguous, but the article beside them is the same trusty article:
+      <span class="gk">τῷ πνεύματι</span> can only be dative;
+      <span class="gk">τοῦ πατρός</span> can only be genitive. Lean on it.</div>
+      <h3>Read these</h3>
+      <ul>
+        <li><span class="gk">τὸ πνεῦμα τῆς ἀληθείας</span> <span class="gloss">the Spirit of truth (John 14:17)</span></li>
+        <li><span class="gk">χάριτί ἐστε σεσῳσμένοι διὰ πίστεως.</span> <span class="gloss">By grace you are saved, through faith. (Eph 2:8)</span></li>
+        <li><span class="gk">ὁ πατὴρ ἀγαπᾷ τὸν υἱόν.</span> <span class="gloss">The Father loves the Son. (John 3:35)</span></li>
+      </ul>`,
+    quiz: [
+      { q:'To find a third-declension noun’s stem, look at…', a:'Its genitive form', wrong:['Its nominative form','Its accent','The article only'] },
+      { q:'The stem of <span class="gk">σάρξ, σαρκός</span> is…', a:'σαρκ-', wrong:['σαρξ-','σαρ-','σα-'] },
+      { q:'<span class="gk">πνεῦμα, ὄνομα, σῶμα</span> are all…', a:'Neuter, with -ματ- stems', wrong:['Feminine, with -η endings','Masculine, like λόγος','Indeclinable'] },
+      { q:'<span class="gk">πρὸς τὸν πατέρα</span> means…', a:'to the Father', wrong:['of the Father','the fathers','with the fatherland'] },
+      { q:'<span class="gk">πίστις, πίστεως, ἡ</span> means…', a:'faith', wrong:['grace','power','judgment'] },
+    ],
+  },
+  {
+    id: 'john316', glyph: 'γὰ', title: 'Reading: John 3:16–17',
+    blurb: 'The most famous sentence in the world, in its own words.',
+    body: () => `
+      <p>You are ready for the verse many people know only in translation. It contains one aorist
+      you know well (<span class="gk">ἠγάπησεν</span>), one you just met (<span class="gk">ἔδωκεν</span>),
+      and — deliberately — a preview of the two lessons ahead: a participle
+      (<span class="gk">ὁ πιστεύων</span>) and subjunctives (<span class="gk">ἀπόληται, ἔχῃ</span>).
+      The glosses will carry you; the next lessons will make them yours.</p>
+      ${interlinearHTML('john316')}
+      <h3>What only the Greek shows you</h3>
+      <p><strong>"So" means "thus."</strong> <span class="gk">Οὕτως</span> is "in this manner" —
+      pointing back to the bronze serpent lifted up in v. 14–15 — more than "so much." The verse
+      describes the <em>way</em> God loved: he gave.</p>
+      <p><strong>πᾶς ὁ πιστεύων.</strong> Not "whoever happens to believe once" but "every
+      one-who-believes" — a present participle, continuous: everyone whose life is believing.</p>
+      <p><strong>The two fates rhyme grammatically.</strong> <span class="gk">μὴ ἀπόληται</span>
+      (should not perish) versus <span class="gk">ἔχῃ ζωὴν αἰώνιον</span> (should have eternal
+      life) — two subjunctives hanging from one <span class="gk">ἵνα</span>: the purpose of the giving.</p>
+      <div class="callout"><strong>Assignment.</strong> Memorize John 3:16 in Greek this week.
+      It is 25 words; two or three a day and it is yours for life —
+      <span class="gk">Οὕτως γὰρ ἠγάπησεν ὁ θεὸς τὸν κόσμον…</span></div>`,
+    quiz: [
+      { q:'<span class="gk">Οὕτως</span> in John 3:16 primarily means…', a:'"thus, in this way" — pointing to how God loved', wrong:['"so much" — pure quantity','"therefore"','"once upon a time"'] },
+      { q:'<span class="gk">πᾶς ὁ πιστεύων</span> means…', a:'everyone who believes (ongoing)', wrong:['whoever once believed','all the faithful ones died','each believer of the past'] },
+      { q:'<span class="gk">ἔδωκεν</span> means…', a:'he gave', wrong:['he sent','he loved','he judged'] },
+      { q:'<span class="gk">ζωὴν αἰώνιον</span> is accusative because…', a:'It is the direct object of "have"', wrong:['It follows ἵνα','All abstract nouns are accusative','It is the subject'] },
+      { q:'Verse 17 says God sent the Son…', a:'not to judge the world, but that it might be saved', wrong:['to judge the world','only to Israel','after the world was saved'] },
+    ],
+  },
+  {
+    id: 'participles1', glyph: 'ων', title: 'Present Participles',
+    blurb: 'The -ing forms — Greek’s favorite way to build a sentence.',
+    body: () => `
+      <p>If you learn to read participles, you learn to read the New Testament — no grammatical
+      form is more characteristic of Greek style. A participle is a <em>verbal adjective</em>:
+      it has tense and voice like a verb, and gender, number, and case like an adjective.</p>
+      <h3>Forms to recognize</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Voice</th><th>Masc.</th><th>Fem.</th><th>Neut.</th><th>Feel</th></tr>
+        <tr><td>Active</td><td class="gk">λύων, λύοντος</td><td class="gk">λύουσα</td><td class="gk">λῦον</td><td>loosing</td></tr>
+        <tr><td>Middle/passive</td><td class="gk">λυόμενος</td><td class="gk">λυομένη</td><td class="gk">λυόμενον</td><td>being loosed</td></tr>
+      </table></div>
+      <p>The active declines like a third-declension noun (stem <span class="gk">λυοντ-</span>);
+      the middle declines like a familiar first/second-declension adjective. εἰμί's participle
+      is <span class="gk">ὤν, οὖσα, ὄν</span> — "being."</p>
+      <h3>The two great uses</h3>
+      <ul>
+        <li><strong>With the article — "the one who ~s":</strong>
+          <span class="gk">ὁ πιστεύων</span> — the one believing;
+          <span class="gk">ὁ λέγων</span> — the one saying;
+          <span class="gk">οἱ ἀκούοντες</span> — those hearing. This is a relative clause folded
+          into two words, and the NT uses it constantly.</li>
+        <li><strong>Without the article — "while ~ing":</strong> circumstance around the main verb:
+          <span class="gk">διδάσκων ἔλεγεν αὐτοῖς</span> — "while teaching, he was saying to them."
+          The present participle marks action <em>at the same time</em> as the main verb.</li>
+      </ul>
+      <div class="callout"><strong>Reading strategy.</strong> When you hit a participle, ask two
+      questions: <em>Does it have the article?</em> (→ "the one who…") and
+      <em>What does it agree with?</em> Its case points to its noun like a compass needle.</div>
+      <h3>Read these</h3>
+      <ul>
+        <li><span class="gk">ὁ πιστεύων εἰς τὸν υἱὸν ἔχει ζωὴν αἰώνιον.</span> <span class="gloss">The one believing in the Son has eternal life. (John 3:36)</span></li>
+        <li><span class="gk">φωνὴ βοῶντος ἐν τῇ ἐρήμῳ.</span> <span class="gloss">A voice of one crying in the wilderness. (Mark 1:3)</span></li>
+        <li><span class="gk">ὁ ὢν ἐκ τοῦ θεοῦ τὰ ῥήματα τοῦ θεοῦ ἀκούει.</span> <span class="gloss">The one who is of God hears the words of God. (John 8:47)</span></li>
+      </ul>`,
+    quiz: [
+      { q:'A participle is best described as…', a:'A verbal adjective — verb tense and voice, adjective agreement', wrong:['A verbal noun','An adverb','A conjunction'] },
+      { q:'<span class="gk">ὁ πιστεύων</span> means…', a:'the one believing / who believes', wrong:['he believed','believe!','the belief'] },
+      { q:'<span class="gk">οἱ ἀκούοντες</span> means…', a:'those hearing', wrong:['the one hearing','they heard','hear ye'] },
+      { q:'Without the article, a present participle usually means…', a:'"while ~ing" — action alongside the main verb', wrong:['"after ~ing"','A command','A wish'] },
+      { q:'The participle of <span class="gk">εἰμί</span> is…', a:'<span class="gk">ὤν, οὖσα, ὄν</span> — being', wrong:['<span class="gk">ἦν</span>','<span class="gk">ἐστίν</span>','<span class="gk">εἶναι</span>'] },
+    ],
+  },
+  {
+    id: 'participles2', glyph: 'θεὶ', title: 'Aorist Participles',
+    blurb: '"Answering, he said" — the backbone of Gospel narrative.',
+    body: () => `
+      <p>Where the present participle means "while doing," the <strong>aorist participle</strong>
+      typically means "<em>having</em> done" — action prior to the main verb. String them together
+      and you get the classic rhythm of a Gospel sentence: <em>having come, having seen, he said…</em></p>
+      <h3>Forms to recognize</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Type</th><th>Example</th><th>Feel</th></tr>
+        <tr><td>First aorist active</td><td class="gk">λύσας, λύσασα, λῦσαν</td><td>having loosed</td></tr>
+        <tr><td>Second aorist active</td><td class="gk">εἰπών · ἐλθών · ἰδών · λαβών</td><td>having said · come · seen · taken</td></tr>
+        <tr><td>Aorist passive</td><td class="gk">ἀποκριθείς · βαπτισθείς</td><td>having answered · having been baptized</td></tr>
+      </table></div>
+      <div class="callout"><strong>No augment!</strong> The augment lives only in the indicative.
+      <span class="gk">ἐλθών</span>, not <span class="gk">ἠλθών</span>. If you see a familiar aorist
+      stem without its augment and with adjective endings, you are looking at a participle.</div>
+      <h3>The formula you will meet a thousand times</h3>
+      <p><span class="gk">ἀποκριθεὶς εἶπεν</span> — literally "having answered, he said," in
+      practice simply "he answered." Likewise
+      <span class="gk">ἐλθὼν ὁ Ἰησοῦς εἶπεν…</span> — "Jesus came and said…" Greek narrative
+      loves one main verb dressed with participles, where English strings verbs with "and."</p>
+      <h3>The genitive absolute — recognize, don’t fear</h3>
+      <p>A participle and noun both in the genitive form a little clause loose from the sentence's
+      grammar: <span class="gk">ἔτι αὐτοῦ λαλοῦντος</span> — "while he was still speaking…"
+      (Mark 5:35). Read it as its own "when/while" clause and move on.</p>
+      <h3>Read these</h3>
+      <ul>
+        <li><span class="gk">ἀποκριθεὶς δὲ ὁ Πέτρος εἶπεν αὐτῷ…</span> <span class="gloss">And Peter answered him… (Matt 15:15)</span></li>
+        <li><span class="gk">ἰδὼν δὲ τοὺς ὄχλους ἀνέβη εἰς τὸ ὄρος.</span> <span class="gloss">And seeing the crowds, he went up onto the mountain. (Matt 5:1)</span></li>
+        <li><span class="gk">λαβὼν ἄρτον εἶπεν…</span> <span class="gloss">Having taken bread, he said…</span></li>
+      </ul>`,
+    quiz: [
+      { q:'An aorist participle usually signals action that is…', a:'Prior to the main verb: "having done"', wrong:['Simultaneous: "while doing"','Future: "about to do"','Commanded'] },
+      { q:'Why is it <span class="gk">ἐλθών</span> and not <span class="gk">ἠλθών</span>?', a:'Participles never take the augment', wrong:['It is a spelling error in the manuscripts','The accent replaces the augment','Second aorists have no stems'] },
+      { q:'<span class="gk">ἀποκριθεὶς εἶπεν</span> is best translated…', a:'"he answered" — the participle folds into the verb', wrong:['"he will answer and say"','"answer and speak!"','"he said without answering"'] },
+      { q:'<span class="gk">ἰδὼν τοὺς ὄχλους</span> means…', a:'seeing / having seen the crowds', wrong:['the crowds saw him','he sees the mountain','having fled the crowds'] },
+      { q:'A genitive absolute like <span class="gk">ἔτι αὐτοῦ λαλοῦντος</span> reads as…', a:'Its own "while/when" clause: "while he was still speaking"', wrong:['A possessive: "of his word"','A command','The sentence’s main verb'] },
+    ],
+  },
+  {
+    id: 'infinitives', glyph: 'ειν', title: 'Infinitives',
+    blurb: 'To be, to do, to become — and the verbs that govern them.',
+    body: () => `
+      <p>The infinitive — "to loose," "to be" — is the verb's noun form. Greek has surprisingly
+      few forms to learn and a few powerful idioms built on them.</p>
+      <h3>Forms</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Tense</th><th>Active</th><th>Middle</th><th>Feel</th></tr>
+        <tr><td>Present</td><td class="gk">λύειν</td><td class="gk">λύεσθαι · ἔρχεσθαι</td><td>to loose (ongoing)</td></tr>
+        <tr><td>Aorist</td><td class="gk">λῦσαι · εἰπεῖν · λαβεῖν</td><td class="gk">γενέσθαι</td><td>to loose (simple)</td></tr>
+        <tr><td>of εἰμί</td><td class="gk">εἶναι</td><td></td><td>to be</td></tr>
+      </table></div>
+      <p>You met <span class="gk">γενέσθαι</span> in John 1:12: authority
+      <span class="gk">τέκνα θεοῦ γενέσθαι</span> — "to become children of God."</p>
+      <h3>Verbs that take an infinitive</h3>
+      <ul>
+        <li><span class="gk">δύναμαι</span> + inf. — to be able:
+          <span class="gk">οὐ δύναται ἁμαρτάνειν</span>, "he is not able to sin."</li>
+        <li><span class="gk">θέλω</span> + inf. — to want:
+          <span class="gk">θέλω τοῦτο ποιεῖν</span>, "I want to do this."</li>
+        <li><span class="gk">μέλλω</span> + inf. — to be about to:
+          <span class="gk">μέλλει ἔρχεσθαι</span>, "he is about to come."</li>
+        <li><span class="gk">ἄρχομαι</span> + inf. — to begin:
+          <span class="gk">ἤρξατο διδάσκειν</span>, "he began to teach."</li>
+        <li><span class="gk">δεῖ</span> + inf. — it is necessary:
+          <span class="gk">δεῖ ὑμᾶς γεννηθῆναι ἄνωθεν</span>, "you must be born again / from above." (John 3:7)</li>
+      </ul>
+      <div class="callout"><strong>δεῖ deserves a pause.</strong> It is impersonal — "it is
+      necessary" — and its subject goes into the accusative: <span class="gk">δεῖ με ἐργάζεσθαι</span>,
+      "it is necessary for me to work" = "I must work." The NT uses δεῖ for divine necessity:
+      what <em>must</em> happen in God's plan.</div>
+      <h3>The articular infinitive</h3>
+      <p>Greek can put an article on an infinitive and govern it with a preposition. Learn one
+      pattern now: <span class="gk">μετὰ τὸ</span> + infinitive = "after ~ing":
+      <span class="gk">μετὰ τὸ ἐγερθῆναί με</span> — "after I am raised." (Mark 14:28)</p>`,
+    quiz: [
+      { q:'<span class="gk">εἶναι</span> is…', a:'the infinitive of εἰμί: "to be"', wrong:['the imperfect of εἰμί','a participle','"they are"'] },
+      { q:'<span class="gk">δύναμαι λύειν</span> means…', a:'I am able to loose', wrong:['I loose myself','I was loosing','loose me!'] },
+      { q:'<span class="gk">μέλλω</span> + infinitive means…', a:'to be about to do something', wrong:['to refuse to do','to have finished doing','to do repeatedly'] },
+      { q:'In <span class="gk">δεῖ με ἐργάζεσθαι</span>, why is <span class="gk">με</span> accusative?', a:'δεῖ is impersonal; its subject goes into the accusative', wrong:['It is the direct object of "work"','A scribal error','Pronouns are always accusative'] },
+      { q:'<span class="gk">ἤρξατο διδάσκειν</span> means…', a:'he began to teach', wrong:['he stopped teaching','he taught the ruler','he will begin to teach'] },
+    ],
+  },
+  {
+    id: 'subjunctive', glyph: 'ἵνα', title: 'The Subjunctive',
+    blurb: 'Purpose, possibility, and the mood of ἵνα.',
+    body: () => `
+      <p>The subjunctive is the mood of what <em>may</em> or <em>should</em> happen — potential
+      rather than fact. The good news: its forms are just the present endings with the connecting
+      vowel <em>lengthened</em> (ο→ω, ε→η): <span class="gk">λύωμεν, λύητε, λύῃ, λύωσι</span>.
+      εἰμί gives <span class="gk">ὦ, ᾖς, ᾖ, ὦμεν, ἦτε, ὦσι</span>.</p>
+      <h3>Where you meet it</h3>
+      <ul>
+        <li><strong><span class="gk">ἵνα</span> + subjunctive — purpose:</strong>
+          <span class="gk">ἵνα πιστεύητε</span> — "in order that you may believe." John states his
+          whole book's purpose this way: <span class="gk">ταῦτα γέγραπται ἵνα πιστεύητε</span>,
+          "these things stand written so that you may believe" (John 20:31).</li>
+        <li><strong><span class="gk">ἐάν</span> + subjunctive — live condition:</strong>
+          <span class="gk">ἐὰν ὁμολογῶμεν τὰς ἁμαρτίας ἡμῶν…</span> — "if we confess our sins…"
+          (1 John 1:9). Open possibility, not settled fact.</li>
+        <li><strong>Hortatory — "let us…":</strong> first plural, self-exhortation:
+          <span class="gk">ἀγαπῶμεν ἀλλήλους</span> — "let us love one another." (1 John 4:7)</li>
+        <li><strong><span class="gk">οὐ μή</span> + subjunctive — emphatic never:</strong>
+          the strongest denial Greek has:
+          <span class="gk">οὐ μὴ διψήσει εἰς τὸν αἰῶνα</span> pattern — "shall certainly never…"</li>
+      </ul>
+      <div class="callout"><strong>Negation switches.</strong> Indicative takes
+      <span class="gk">οὐ</span>; subjunctive (and the other non-indicative moods) take
+      <span class="gk">μή</span>. That is why John 3:16 says <span class="gk">μὴ ἀπόληται</span>.
+      Seeing μή tells you the verb is not a plain statement.</div>
+      <h3>Read these</h3>
+      <ul>
+        <li><span class="gk">ἵνα ἔχητε εἰρήνην</span> <span class="gloss">…so that you may have peace (John 16:33)</span></li>
+        <li><span class="gk">ἐὰν ἀγαπῶμεν ἀλλήλους, ὁ θεὸς ἐν ἡμῖν μένει.</span> <span class="gloss">If we love one another, God remains in us. (1 John 4:12)</span></li>
+        <li><span class="gk">ἀγαπῶμεν ἀλλήλους.</span> <span class="gloss">Let us love one another.</span></li>
+      </ul>`,
+    quiz: [
+      { q:'The subjunctive is the mood of…', a:'Potential — what may or should happen', wrong:['Plain fact','Past narration','Direct address'] },
+      { q:'<span class="gk">ἵνα πιστεύητε</span> means…', a:'in order that you may believe', wrong:['because you believed','you must have believed','whenever you believe'] },
+      { q:'<span class="gk">ἀγαπῶμεν ἀλλήλους</span> as an exhortation means…', a:'let us love one another', wrong:['we are loving one another','they love each other','love one another! (2nd person)'] },
+      { q:'Non-indicative moods are negated with…', a:'<span class="gk">μή</span>', wrong:['<span class="gk">οὐ</span>','<span class="gk">οὐδέ</span>','<span class="gk">ἀλλά</span>'] },
+      { q:'<span class="gk">οὐ μή</span> + subjunctive expresses…', a:'Emphatic denial — "certainly never"', wrong:['A polite request','A double positive','An open question'] },
+    ],
+  },
+  {
+    id: 'imperative', glyph: 'δὸς', title: 'The Imperative',
+    blurb: 'Follow me. Do not fear. Let it come.',
+    body: () => `
+      <p>Commands. Greek has second-person imperatives like English ("go!") — and third-person
+      ones English lacks ("let him go!", "let it be done!"), which the Lord's Prayer is built on.</p>
+      <h3>Forms</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th></th><th>2nd sg</th><th>2nd pl</th><th>3rd sg</th></tr>
+        <tr><td>Present</td><td class="gk">λῦε</td><td class="gk">λύετε</td><td class="gk">λυέτω</td></tr>
+        <tr><td>Aorist</td><td class="gk">λῦσον</td><td class="gk">λύσατε</td><td class="gk">λυσάτω</td></tr>
+      </table></div>
+      <p>The <em>tense</em> difference is aspect, not time: present imperative = keep doing /
+      general habit (<span class="gk">ἀκολούθει μοι</span>, "follow me" — as a way of life);
+      aorist imperative = do it, simply or now (<span class="gk">δὸς ἡμῖν σήμερον</span>,
+      "give us today").</p>
+      <h3>Prohibitions</h3>
+      <ul>
+        <li><span class="gk">μή</span> + <strong>present imperative</strong> — stop doing / don't be doing:
+          <span class="gk">μὴ φοβοῦ</span> — "do not fear" (φοβέομαι is deponent).</li>
+        <li><span class="gk">μή</span> + <strong>aorist subjunctive</strong> — don't (even start):
+          <span class="gk">μὴ εἰσενέγκῃς ἡμᾶς εἰς πειρασμόν</span> — "do not bring us into testing."</li>
+      </ul>
+      <h3>Imperatives you already half-know</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Greek</th><th>Meaning</th><th>Where</th></tr>
+        <tr><td class="gk">ἀκολούθει μοι</td><td>follow me</td><td>Matt 9:9</td></tr>
+        <tr><td class="gk">χαίρετε</td><td>rejoice! (also "greetings!")</td><td>Phil 4:4</td></tr>
+        <tr><td class="gk">πίστευε</td><td>believe! (keep believing)</td><td>Mark 5:36</td></tr>
+        <tr><td class="gk">δὸς</td><td>give!</td><td>Matt 6:11</td></tr>
+        <tr><td class="gk">ἄφες</td><td>forgive! release!</td><td>Matt 6:12</td></tr>
+        <tr><td class="gk">ἐλθέτω</td><td>let it come!</td><td>Matt 6:10</td></tr>
+        <tr><td class="gk">ἁγιασθήτω</td><td>let it be hallowed!</td><td>Matt 6:9</td></tr>
+      </table></div>
+      <div class="callout"><strong>Next lesson: the Lord's Prayer.</strong> Look at that table
+      again — you have just learned the grammatical skeleton of the whole prayer: a string of
+      aorist imperatives, three of them third-person.</div>`,
+    quiz: [
+      { q:'Greek third-person imperatives mean…', a:'"let him/it …!" — a command about a third party', wrong:['Polite requests only','Past commands','Questions'] },
+      { q:'The aspect difference between <span class="gk">πίστευε</span> and <span class="gk">πίστευσον</span> is…', a:'keep believing (ongoing) vs. believe (simply, now)', wrong:['singular vs. plural','present vs. future time','active vs. passive'] },
+      { q:'<span class="gk">μὴ φοβοῦ</span> means…', a:'do not fear / stop fearing', wrong:['fear!','he does not fear','without fear'] },
+      { q:'<span class="gk">ἐλθέτω ἡ βασιλεία σου</span> means…', a:'let your kingdom come', wrong:['your kingdom came','the kingdom will come','come into the kingdom!'] },
+      { q:'<span class="gk">ἄφες</span> is the imperative meaning…', a:'forgive! release!', wrong:['follow!','rejoice!','give!'] },
+    ],
+  },
+  {
+    id: 'prayer', glyph: 'Πά', title: 'Reading: The Lord’s Prayer',
+    blurb: 'Matthew 6:9–13 — pray it in the language it was written down in.',
+    body: () => `
+      <p>Christians have prayed these words in Greek since the first century — the
+      <span class="gk">Πάτερ ἡμῶν</span>. Every verb form is one you have now studied: aorist
+      imperatives (three of them third-person), a μή-prohibition with the subjunctive, and one
+      middle imperative. Read it aloud — slowly, like a prayer, because it is one.</p>
+      ${interlinearHTML('prayer')}
+      <h3>What the Greek shows</h3>
+      <p><strong>The order of requests.</strong> The first three petitions are third-person
+      imperatives about <em>God's</em> name, kingdom, and will — each with
+      <span class="gk">σου</span> trailing like a refrain. Only then come the
+      <span class="gk">ἡμῶν / ἡμῖν / ἡμᾶς</span> petitions — bread, forgiveness, rescue. The
+      grammar itself orders the priorities.</p>
+      <p><strong>ἐπιούσιος.</strong> The word translated "daily" appears essentially nowhere else
+      in ancient Greek. "For the day ahead," "for existence," "for tomorrow" — scholars still
+      debate it. You have hit your first genuine translation crux, in your second month of Greek.</p>
+      <div class="callout"><strong>Practice.</strong> Read the prayer aloud once a day this week.
+      By day three you will not need the glosses; by day seven you will have it by heart — in
+      Koine Greek.</div>`,
+    quiz: [
+      { q:'<span class="gk">Πάτερ</span> is in which case?', a:'Vocative — direct address', wrong:['Nominative','Genitive','Dative'] },
+      { q:'<span class="gk">ἁγιασθήτω τὸ ὄνομά σου</span> means…', a:'let your name be hallowed', wrong:['your name is holy','hallow the name! (2nd person)','the holy name is yours'] },
+      { q:'The adjective <span class="gk">ἐπιούσιον</span> is remarkable because…', a:'It occurs almost nowhere else in Greek literature', wrong:['It is the longest word in the NT','It is borrowed from Latin','It has no ending'] },
+      { q:'<span class="gk">ἄφες ἡμῖν τὰ ὀφειλήματα ἡμῶν</span> means…', a:'forgive us our debts', wrong:['lead us not into debt','we forgive our debtors','release the prisoners'] },
+      { q:'<span class="gk">μὴ εἰσενέγκῃς</span> is grammatically…', a:'μή + aorist subjunctive: a prohibition', wrong:['A present imperative','A future indicative','An infinitive'] },
+    ],
+  },
+  {
+    id: 'perfect', glyph: 'γέ', title: 'The Perfect & the Passive',
+    blurb: 'γέγραπται — it stands written. ἠγέρθη — he was raised.',
+    body: () => `
+      <p>Two final pieces complete your indicative toolkit: the perfect tense and the aorist
+      passive. Both are everywhere, and both carry theological weight.</p>
+      <h3>The perfect: completed action, standing result</h3>
+      <p>Marked by <strong>reduplication</strong> — the first consonant doubles with ε:
+      <span class="gk">λύω → λέλυκα</span>, γράφω → <span class="gk">γέγραφα</span>. The perfect
+      says: it happened, <em>and its result is still in force</em>.</p>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Form</th><th>Literally</th><th>Force</th></tr>
+        <tr><td class="gk">γέγραπται</td><td>it has been written</td><td>"it stands written" — Jesus' formula for citing scripture</td></tr>
+        <tr><td class="gk">γέγονεν</td><td>it has become</td><td>what has come to be — John 1:3</td></tr>
+        <tr><td class="gk">ἀκηκόαμεν</td><td>we have heard</td><td>heard, and it still rings — 1 John 1:5</td></tr>
+        <tr><td class="gk">σέσωκεν</td><td>he/it has saved</td><td>"your faith has saved you" — and you remain saved</td></tr>
+        <tr><td class="gk">τετέλεσται</td><td>it has been finished</td><td>Jesus' last word from the cross — John 19:30</td></tr>
+      </table></div>
+      <p><span class="gk">Τετέλεσται</span> repays a moment's thought: not "it ended" (aorist) but
+      "it stands accomplished — now and onward." The tense is the theology.</p>
+      <h3>The aorist passive: the -θη- forms</h3>
+      <p>Simple past, subject acted upon; the tell-tale sign is <span class="gk">θη</span>
+      before the ending:</p>
+      <ul>
+        <li><span class="gk">ἐβαπτίσθη</span> — he was baptized (Mark 1:9)</li>
+        <li><span class="gk">ἠγέρθη</span> — he was raised (Matt 28:6)</li>
+        <li><span class="gk">ἐσώθη</span> — he was saved</li>
+        <li><span class="gk">ἀπεκρίθη</span> — he answered (passive form, active meaning — a deponent friend from Lesson 18)</li>
+      </ul>
+      <div class="callout"><strong>The divine passive.</strong> Scripture often uses the passive
+      to imply God as the unnamed actor: <span class="gk">ἠγέρθη</span>, "he was raised" — raised
+      <em>by God</em>. When you see a passive with no agent named, ask who is acting behind the
+      grammar.</div>
+      <h3>Read these</h3>
+      <ul>
+        <li><span class="gk">γέγραπται ἐν τοῖς προφήταις.</span> <span class="gloss">It stands written in the prophets. (John 6:45)</span></li>
+        <li><span class="gk">ἠγέρθη, οὐκ ἔστιν ὧδε.</span> <span class="gloss">He was raised; he is not here. (Mark 16:6)</span></li>
+        <li><span class="gk">ἡ πίστις σου σέσωκέν σε.</span> <span class="gloss">Your faith has saved you. (Mark 5:34)</span></li>
+      </ul>`,
+    quiz: [
+      { q:'The perfect tense expresses…', a:'A completed action whose result still stands', wrong:['Pure ongoing past','Simple future','Timeless commands'] },
+      { q:'The visible sign of the perfect is…', a:'Reduplication: γέγραπται, λέλυκα', wrong:['The augment ἐ-','A σ before the ending','The ending -θη'] },
+      { q:'<span class="gk">γέγραπται</span>, used to cite scripture, means…', a:'"it stands written" — written and still in force', wrong:['"it was once written"','"someone is writing"','"let it be written"'] },
+      { q:'The tell-tale sign of the aorist passive is…', a:'<span class="gk">-θη-</span>: ἐβαπτίσθη, ἠγέρθη', wrong:['<span class="gk">-σα-</span>','Reduplication','The ending -ομαι'] },
+      { q:'The "divine passive" refers to…', a:'A passive implying God as the unnamed actor', wrong:['Any verb about God','A passive with two agents','The passive of εἰμί'] },
+    ],
+  },
+  {
+    id: 'capstone', glyph: 'ἐπ', title: 'Reading: God Is Light',
+    blurb: '1 John 1:5–9 — a whole passage, every form now yours.',
+    body: () => `
+      <p>This is your capstone. 1 John is where every Greek student reads first — simple vocabulary,
+      short clauses, and John's favorite grammar on every line. Unlike John 3:16, nothing here is
+      beyond you now: perfects (<span class="gk">ἀκηκόαμεν</span>), ἐάν + subjunctive five times,
+      deponents (<span class="gk">ψευδόμεθα</span>), third declension
+      (<span class="gk">φωτί, αἷμα</span>), and the article-less predicate
+      (<span class="gk">ὁ θεὸς φῶς ἐστιν</span>) straight out of John 1:1.</p>
+      ${interlinearHTML('john1john')}
+      <h3>Reading notes</h3>
+      <p><strong>Five ἐάν clauses.</strong> John builds the passage as a chain of live conditions —
+      if we say… if we walk… if we confess. The subjunctives keep every door open; the reader must
+      choose which "if" describes them.</p>
+      <p><strong>φῶς ἐστιν, without the article.</strong> As in John 1:1
+      (<span class="gk">θεὸς ἦν ὁ λόγος</span>), the predicate drops its article:
+      God is light — light is what God <em>is</em>, not one lamp among many.</p>
+      <p><strong>The double negative.</strong> <span class="gk">οὐκ ἔστιν οὐδεμία</span> —
+      "there is not none," which in Greek is emphatic, not contradictory: no darkness,
+      <em>none at all</em>.</p>
+      <div class="callout"><strong>You did it.</strong> Alphabet to here: you have read the prologue
+      of John, the sayings of Jesus, the Lord's Prayer, and now a complete passage of 1 John,
+      grammatical form by grammatical form. The final lesson maps the road from here to reading
+      whole books.</div>`,
+    quiz: [
+      { q:'<span class="gk">ὁ θεὸς φῶς ἐστιν</span> — why does φῶς lack the article?', a:'It is the predicate: light is what God is', wrong:['A copying error','φῶς never takes an article','To show there are many lights'] },
+      { q:'<span class="gk">ἀκηκόαμεν</span> is which tense?', a:'Perfect — heard, with the message still standing', wrong:['Aorist','Imperfect','Future'] },
+      { q:'<span class="gk">ἐὰν ὁμολογῶμεν τὰς ἁμαρτίας ἡμῶν</span> means…', a:'if we confess our sins', wrong:['when we hid our sins','because we confessed','let us confess our sins'] },
+      { q:'<span class="gk">οὐκ ἔστιν οὐδεμία</span> is…', a:'An emphatic double negative: none at all', wrong:['A contradiction','A question','A positive statement'] },
+      { q:'<span class="gk">καθαρίζει ἡμᾶς ἀπὸ πάσης ἁμαρτίας</span> means…', a:'cleanses us from all sin', wrong:['will cleanse us from one sin','cleansed us long ago','keeps us from all sinners'] },
+    ],
+  },
+  {
     id: 'onward', glyph: 'Ω', title: 'Your Path Forward',
     blurb: 'A realistic plan for the next twelve months.',
     body: () => `
-      <p>You now hold the foundations: the alphabet and its sounds, the article, two declensions,
-      the present tense, the core prepositions — and you have read real scripture. Here is what a
-      sustainable road onward looks like.</p>
+      <p>Take stock of what you now hold: the alphabet, all three declensions, the article,
+      pronouns, adjectives, and every major verb form of the indicative — present, imperfect,
+      future, both aorists, and the perfect — plus participles, infinitives, the subjunctive, and
+      the imperative. That is the substance of a first-year seminary grammar. And you have read
+      John's prologue, the "I AM" sayings, John 3:16, the Lord's Prayer, and a full passage of
+      1 John in the original. Here is what a sustainable road onward looks like.</p>
       <h3>The daily practice (20–30 minutes beats 3 hours on Saturday)</h3>
       <ul>
         <li><strong>10 min vocabulary</strong> — the Flashcards tab here, or Anki with a frequency deck.
@@ -1175,11 +2605,16 @@ const LESSONS = [
         <li><strong>A reader's Greek New Testament</strong> — footnotes gloss every word occurring
           under 30 times, so you can read whole pages without a dictionary.</li>
       </ul>
-      <h3>A realistic timeline</h3>
+      <h3>A realistic road from here</h3>
       <ul>
-        <li><strong>Months 1–3:</strong> alphabet mastered, ~100 words, present tense, both main declensions.</li>
-        <li><strong>Months 4–8:</strong> the other tenses (future, aorist, imperfect, perfect), participles begin. Reading 1 John slowly.</li>
-        <li><strong>Months 9–12:</strong> ~300+ words, all indicative tenses, reading John's Gospel with a reader's edition.</li>
+        <li><strong>Consolidate (next 1–2 months):</strong> work through a printed grammar's exercises
+          to harden what these lessons introduced — recognition must become production. Keep the
+          Flashcards and Reading tabs in daily rotation.</li>
+        <li><strong>Read 1 John whole (months 2–4):</strong> a chapter a week with a reader's edition
+          or a tagged text. You have already read 1:5–9 here; the rest is the same voice.</li>
+        <li><strong>John's Gospel, then Mark (months 4–12):</strong> long stretches of real reading,
+          plus the remaining grammar (contract verbs in detail, μι-verbs, conditional classes) as
+          you meet it in the text.</li>
       </ul>
       <div class="callout"><strong>The one rule that matters:</strong> never miss two days in a row.
       Languages are lost in the gaps, not in the difficulty. <span class="gk">Ἡ δὲ ἀρχὴ ἤδη σή ἐστιν</span> —
@@ -1209,14 +2644,19 @@ function go(v, lessonId) {
 
 function render() {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  const tabId = view === 'lesson' ? 'tab-home' : 'tab-' + view;
+  const tabId = view === 'lesson' ? 'tab-home' : view === 'passage' ? 'tab-reading' : 'tab-' + view;
   const tab = document.getElementById(tabId);
   if (tab) tab.classList.add('active');
+  const chip = document.getElementById('tab-profiles');
+  if (chip) chip.textContent = DB.active;
 
   if (view === 'home') renderHome();
   else if (view === 'lesson') renderLesson();
+  else if (view === 'reading') renderReading();
+  else if (view === 'passage') renderPassage();
   else if (view === 'cards') renderCards();
   else if (view === 'ref') renderRef();
+  else if (view === 'profiles') renderProfiles();
 }
 
 /* ---------- home ---------- */
@@ -1227,8 +2667,9 @@ function renderHome() {
     <div class="hero">
       <p class="uncial greek">ΕΝ ΑΡΧΗ ΗΝ Ο <span class="nomen">ΛΟΓΟΣ</span></p>
       <p class="translation">"In the beginning was the Word" — John 1:1</p>
-      <p class="sub">A first course in Biblical Greek: nine lessons from the alphabet to reading
-      the opening of John's Gospel in the original — the way the Gospel writers wrote it.</p>
+      <p class="sub">A first course in Biblical Greek: from the alphabet through the full verb
+      system, reading real scripture at every step — John's prologue, the "I AM" sayings,
+      John 3:16, the Lord's Prayer, and 1 John, in the original.</p>
       <div class="progress-line">
         <span>${done} of ${LESSONS.length} lessons</span>
         <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
@@ -1380,19 +2821,20 @@ function showLetter(i) {
 }
 
 /* ---------- interlinear widget ---------- */
-function interlinearHTML() {
+function interlinearHTML(pid) {
+  const p = PASSAGES[pid];
   return `<div class="interlinear">
     <div>
-      ${JOHN.map(v => `<span class="verse-num">${v.v}</span>` +
+      ${p.verses.map((v, vi) => `<span class="verse-num">${v.ref || v.v}</span>` +
         v.words.map((w, wi) =>
-          `<button class="il-word" onclick="showGloss(${v.v},${wi})">${w[0]}</button>`
+          `<button class="il-word" onclick="showGloss('${pid}',${vi},${wi})">${w[0]}</button>`
         ).join('')).join(' ')}
     </div>
     <div class="il-gloss" id="il-gloss">Tap any Greek word to see its pronunciation and meaning.</div>
   </div>`;
 }
-function showGloss(v, wi) {
-  const verse = JOHN.find(x => x.v === v);
+function showGloss(pid, vi, wi) {
+  const verse = PASSAGES[pid] && PASSAGES[pid].verses[vi];
   if (!verse) return;
   const w = verse.words[wi];
   document.querySelectorAll('.il-word').forEach(b => b.classList.remove('sel'));
@@ -1425,8 +2867,8 @@ function renderCards() {
     <div class="lesson-head" style="margin-top:0.5rem">
       <span class="kicker">Vocabulary</span>
       <h2>Flashcards</h2>
-      <p style="color:var(--ink-soft);font-size:0.9rem;margin:0.4rem 0 0">The 60 words that unlock most of the
-      New Testament, ordered so the ones you miss come back first. Tap the card to flip it.</p>
+      <p style="color:var(--ink-soft);font-size:0.9rem;margin:0.4rem 0 0">${CARDS.length} high-frequency words
+      that unlock most of the New Testament, ordered so the ones you miss come back first. Tap the card to flip it.</p>
     </div>
     <div class="deck-controls">
       ${[['all','All words'],['small','Small words'],['noun','Nouns'],['verb','Verbs']].map(([k, label]) =>
@@ -1465,6 +2907,210 @@ function gradeCard(right) {
   deck.pos++;
   deck.flipped = false;
   renderCards();
+}
+
+/* ---------- reading ---------- */
+let currentPassage = null;
+let rd = { mode: 'read', vi: 0, score: 0, revealed: false };
+let drill = { tier: 'all', order: [], pos: 0, revealed: false };
+
+function renderReading() {
+  const drillKnown = Object.values(state.drill).filter(d => d.right >= 2).length;
+  app.innerHTML = `
+    <div class="lesson-head" style="margin-top:0.5rem">
+      <span class="kicker">Real texts</span>
+      <h2>Reading</h2>
+      <p style="color:var(--ink-soft);font-size:0.9rem;margin:0.4rem 0 0">Guided passages with
+      word-by-word glosses and a translate-it-yourself mode, plus a drill of short famous verses.
+      The level tags suggest when each text opens up — but nothing is locked.</p>
+    </div>
+    <div class="path" style="margin-top:1.25rem">
+      ${Object.keys(PASSAGES).map(pid => {
+        const p = PASSAGES[pid];
+        const st = state.reading[pid];
+        const done = st && st.best === p.verses.length;
+        return `
+        <button class="passage-card ${done ? 'done-reading' : ''}" onclick="openPassage('${pid}')">
+          <span class="lesson-meta">
+            <h3>${p.title}</h3>
+            <p class="pref">${p.ref}${st ? ` · best translation pass: ${st.best}/${p.verses.length}` : ''}</p>
+          </span>
+          <span class="plevel">${done ? '✓ Translated' : p.level}</span>
+        </button>`;
+      }).join('')}
+    </div>
+    <div class="lesson-head" style="margin-top:2.5rem">
+      <span class="kicker">Verse drill</span>
+      <h2 style="font-size:1.5rem">Famous verses, one line at a time</h2>
+      <p style="color:var(--ink-soft);font-size:0.9rem;margin:0.4rem 0 0">Read the Greek aloud,
+      translate it in your head, then reveal. Verses you miss come back first.
+      ${drillKnown} of ${SENTENCES.length} known (right twice).</p>
+    </div>
+    <div class="deck-controls">
+      ${[['all','All'],['1','Tier 1 · after Lesson 8'],['2','Tier 2 · after Lesson 16'],['3','Tier 3 · after Lesson 25']].map(([k, label]) =>
+        `<button class="chip ${drill.tier === k ? 'active' : ''}" onclick="setDrillTier('${k}')">${label}</button>`).join('')}
+    </div>
+    ${drillCardHTML()}`;
+}
+
+function buildDrill() {
+  const idxs = SENTENCES.map((s, i) => i).filter(i => drill.tier === 'all' || SENTENCES[i].tier === Number(drill.tier));
+  idxs.sort((a, b) => {
+    const sa = state.drill[a] || { seen: 0, right: 0 };
+    const sb = state.drill[b] || { seen: 0, right: 0 };
+    return (sa.right - sa.seen * 0.4) - (sb.right - sb.seen * 0.4) || a - b;
+  });
+  drill.order = idxs;
+  drill.pos = 0;
+  drill.revealed = false;
+}
+
+function drillCardHTML() {
+  if (!drill.order.length) buildDrill();
+  if (!drill.order.length) return '<p style="color:var(--ink-soft)">No verses in this tier.</p>';
+  const i = drill.order[drill.pos % drill.order.length];
+  const s = SENTENCES[i];
+  return `
+    <button class="flashcard" onclick="revealDrill()" id="drill-card">
+      <span class="drill-ref">${s.ref}</span>
+      <span class="word" style="font-size:1.7rem">${s.gk}</span>
+      ${drill.revealed ? `
+        <span class="answer">${s.en}</span>
+        ${s.note ? `<span class="hint" style="max-width:34rem">${s.note}</span>` : ''}
+      ` : `<span class="hint">translate it in your head, then tap to reveal</span>`}
+    </button>
+    <div class="card-actions" style="visibility:${drill.revealed ? 'visible' : 'hidden'}">
+      <button class="btn again" onclick="gradeDrill(false)">Again</button>
+      <button class="btn got" onclick="gradeDrill(true)">Got it</button>
+    </div>
+    <div class="deck-stats">Verse ${(drill.pos % drill.order.length) + 1} of ${drill.order.length} in this tier</div>`;
+}
+
+function setDrillTier(t) { drill.tier = t; buildDrill(); renderReading(); }
+function revealDrill() { drill.revealed = !drill.revealed; renderReading(); }
+function gradeDrill(right) {
+  const i = drill.order[drill.pos % drill.order.length];
+  const st = state.drill[i] || { seen: 0, right: 0 };
+  st.seen++;
+  if (right) st.right++;
+  state.drill[i] = st;
+  store.save();
+  if (!right) drill.order.splice(Math.min(drill.pos + 3, drill.order.length), 0, i);
+  drill.pos++;
+  drill.revealed = false;
+  renderReading();
+}
+
+function openPassage(pid) {
+  currentPassage = pid;
+  rd = { mode: 'read', vi: 0, score: 0, revealed: false };
+  go('passage');
+}
+
+function setPassageMode(m) {
+  rd.mode = m;
+  rd.vi = 0; rd.score = 0; rd.revealed = false;
+  renderPassage();
+}
+
+function renderPassage() {
+  const p = PASSAGES[currentPassage];
+  if (!p) return go('reading');
+  app.innerHTML = `
+    <button class="crumb" onclick="go('reading')">← Back to reading</button>
+    <div class="lesson-head">
+      <span class="kicker">${p.ref}</span>
+      <h2>${p.title}</h2>
+    </div>
+    <div class="mode-toggle">
+      <button class="chip ${rd.mode === 'read' ? 'active' : ''}" onclick="setPassageMode('read')">Read with glosses</button>
+      <button class="chip ${rd.mode === 'translate' ? 'active' : ''}" onclick="setPassageMode('translate')">Translate it yourself</button>
+    </div>
+    <div id="passage-body">${rd.mode === 'read' ? interlinearHTML(currentPassage) : translateHTML(p)}</div>`;
+}
+
+function translateHTML(p) {
+  if (rd.vi >= p.verses.length) {
+    const st = state.reading[currentPassage] || { best: 0 };
+    if (rd.score > st.best) {
+      state.reading[currentPassage] = { best: rd.score, total: p.verses.length };
+      store.save();
+    }
+    const best = Math.max(rd.score, st.best);
+    return `
+      <div class="quiz"><div class="quiz-result">
+        <div class="score">${rd.score} / ${p.verses.length}</div>
+        <p>${rd.score === p.verses.length ? 'Every verse — you are reading scripture unaided.'
+            : 'Best pass so far: ' + best + ' of ' + p.verses.length + '. The glossed reading is always there to review.'}</p>
+        <div class="quiz-actions">
+          <button class="btn ghost" onclick="setPassageMode('translate')">Translate again</button>
+          <button class="btn" onclick="setPassageMode('read')">Reread with glosses</button>
+        </div>
+      </div></div>`;
+  }
+  const v = p.verses[rd.vi];
+  return `
+    <div class="verse-block">
+      <div style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:0.6rem">
+        Verse ${rd.vi + 1} of ${p.verses.length} · ${v.ref || v.v}</div>
+      <div class="vgreek greek">${v.words.map(w => w[0]).join(' ')}</div>
+      ${rd.revealed ? `
+        <div class="ven">${v.en}</div>
+        <div class="vnote">How close were you? Grade yourself honestly — misses return sooner next pass.</div>
+        <div class="card-actions" style="justify-content:flex-start">
+          <button class="btn again" onclick="gradeVerse(false)">Missed it</button>
+          <button class="btn got" onclick="gradeVerse(true)">Got it</button>
+        </div>
+      ` : `
+        <div class="vnote">Translate aloud or on paper, then check.</div>
+        <div class="card-actions" style="justify-content:flex-start">
+          <button class="btn" onclick="rd.revealed = true; renderPassage()">Show translation</button>
+        </div>
+      `}
+    </div>`;
+}
+
+function gradeVerse(right) {
+  if (right) rd.score++;
+  rd.vi++;
+  rd.revealed = false;
+  renderPassage();
+}
+
+/* ---------- profiles ---------- */
+function renderProfiles() {
+  const names = Object.keys(DB.profiles);
+  app.innerHTML = `
+    <div class="lesson-head" style="margin-top:0.5rem">
+      <span class="kicker">Who is studying?</span>
+      <h2>Profiles</h2>
+      <p style="color:var(--ink-soft);font-size:0.9rem;margin:0.4rem 0 0">Each profile keeps its own
+      lesson progress, quiz scores, flashcards, and reading stats — several people can share this
+      page. Progress lives in this browser only.</p>
+    </div>
+    <div class="profile-list">
+      ${names.map(n => {
+        const p = DB.profiles[n];
+        const done = LESSONS.filter(l => p.lessons[l.id] && p.lessons[l.id].done).length;
+        const words = Object.values(p.cards).filter(c => c.right >= 2).length;
+        const safe = n.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        return `
+        <div class="profile-row ${n === DB.active ? 'active-profile' : ''}">
+          <span>
+            <div class="pname">${n}${n === DB.active ? ' · studying now' : ''}</div>
+            <div class="pstats">${done} of ${LESSONS.length} lessons · ${words} words known</div>
+          </span>
+          <span class="spacer"></span>
+          ${n === DB.active ? '' : `<button class="btn small" onclick="switchProfile('${safe}')">Switch</button>`}
+          ${names.length > 1 ? `<button class="btn small danger" onclick="deleteProfile('${safe}')">Delete</button>` : ''}
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="new-profile">
+      <input id="new-profile-name" maxlength="24" placeholder="New profile name"
+        onkeydown="if(event.key==='Enter')createProfile()">
+      <button class="btn" onclick="createProfile()">Add profile</button>
+    </div>`;
 }
 
 /* ---------- reference ---------- */
@@ -1526,6 +3172,37 @@ function renderRef() {
       </table></div>
       <p style="font-size:0.85rem;color:var(--ink-soft)">Imperfect of εἰμί worth knowing early:
       <span class="gk">ἦν</span> — "was" (3rd singular), as in John 1:1.</p>
+    </div>
+
+    <div class="ref-section">
+      <h3>The verb system at a glance — <span class="gk">λύω</span>, 1st singular</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Tense</th><th>Form</th><th>Sign</th><th>Feel</th></tr>
+        <tr><td>Present</td><td class="gk">λύω</td><td>—</td><td>I loose / am loosing</td></tr>
+        <tr><td>Imperfect</td><td class="gk">ἔλυον</td><td>augment</td><td>I was loosing</td></tr>
+        <tr><td>Future</td><td class="gk">λύσω</td><td>σ</td><td>I will loose</td></tr>
+        <tr><td>1st aorist</td><td class="gk">ἔλυσα</td><td>augment + σα</td><td>I loosed</td></tr>
+        <tr><td>2nd aorist</td><td class="gk">εἶπον <span class="gloss">(λέγω)</span></td><td>changed stem</td><td>I said</td></tr>
+        <tr><td>Perfect</td><td class="gk">λέλυκα</td><td>reduplication</td><td>I have loosed (result stands)</td></tr>
+        <tr><td>Aorist passive</td><td class="gk">ἐλύθην</td><td>augment + θη</td><td>I was loosed</td></tr>
+        <tr><td>Pres. middle/passive</td><td class="gk">λύομαι</td><td>-ομαι endings</td><td>I am loosed / loose for myself</td></tr>
+      </table></div>
+      <p style="font-size:0.85rem;color:var(--ink-soft)">Moods, using the 2nd plural: indicative
+      <span class="gk">λύετε</span> (you loose) · subjunctive <span class="gk">λύητε</span> (you may loose) ·
+      imperative <span class="gk">λύετε / λύσατε</span> (loose!) · infinitive <span class="gk">λύειν / λῦσαι</span> (to loose) ·
+      participle <span class="gk">λύων / λύσας / λυόμενος</span> (loosing / having loosed / being loosed).</p>
+    </div>
+
+    <div class="ref-section">
+      <h3>Second aorists to know on sight</h3>
+      <div class="table-scroll"><table class="paradigm">
+        <tr><th>Present</th><th>Aorist</th><th>Meaning</th><th>Present</th><th>Aorist</th><th>Meaning</th></tr>
+        <tr><td class="gk">λέγω</td><td class="gk">εἶπον</td><td>said</td><td class="gk">ὁράω</td><td class="gk">εἶδον</td><td>saw</td></tr>
+        <tr><td class="gk">ἔρχομαι</td><td class="gk">ἦλθον</td><td>came</td><td class="gk">εὑρίσκω</td><td class="gk">εὗρον</td><td>found</td></tr>
+        <tr><td class="gk">λαμβάνω</td><td class="gk">ἔλαβον</td><td>took</td><td class="gk">γινώσκω</td><td class="gk">ἔγνων</td><td>knew</td></tr>
+        <tr><td class="gk">γίνομαι</td><td class="gk">ἐγενόμην</td><td>became</td><td class="gk">βάλλω</td><td class="gk">ἔβαλον</td><td>threw</td></tr>
+        <tr><td class="gk">ἐσθίω</td><td class="gk">ἔφαγον</td><td>ate</td><td class="gk">δίδωμι</td><td class="gk">ἔδωκα</td><td>gave</td></tr>
+      </table></div>
     </div>
 
     <div class="ref-section">
