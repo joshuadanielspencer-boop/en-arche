@@ -34,6 +34,10 @@ in the browser's localStorage.
 - **Parsing drills** — 90 real inflected forms from the lessons; identify the
   parse or the meaning, scheduled for review like vocabulary
 - **Flashcards** — ~100 high-frequency NT words on the same review scheduler
+- **Audio** — speaker buttons on flashcards, parsing forms, tapped interlinear
+  words, verses, and whole passages, via the browser's speech synthesis: an
+  Erasmian approximation (Greek respelled into phonetic English syllables), or
+  a real Modern Greek voice where the device has one (Profiles → Pronunciation)
 - **Reference** — alphabet, all 24 article forms, all three declensions, the
   verb system at a glance, second aorists on sight, prepositions
 - **Profiles** — several people can study in the same browser, each with

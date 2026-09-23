@@ -698,6 +698,35 @@
   .parse-lemma { font-size: 0.85rem; color: var(--ink-soft); margin: 0 0 1rem; }
   .parse-lemma .gk { font-size: 1.05rem; }
 
+  /* ---------- audio ---------- */
+  .speak-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--lapis);
+    cursor: pointer;
+    padding: 0;
+    vertical-align: middle;
+    flex: none;
+  }
+  .speak-btn:hover { border-color: var(--lapis); background: var(--lapis-wash); }
+  .speak-btn svg { width: 1rem; height: 1rem; fill: currentColor; }
+  .no-audio .speak-btn, .no-audio .listen-row { display: none; }
+  .listen-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.75rem 0 0;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+  .listen-row.centered { justify-content: center; }
+
   footer.colophon {
     max-width: 780px;
     margin: 0 auto;
@@ -739,7 +768,8 @@
 <main id="app"></main>
 
 <footer class="colophon">
-  Pronunciation follows the Erasmian classroom convention. Vocabulary frequencies are approximate counts
+  Pronunciation follows the Erasmian classroom convention; spoken audio is synthesized and approximate
+  (switch schemes under Profiles → Pronunciation). Vocabulary frequencies are approximate counts
   of occurrences in the Greek New Testament. Set in Cardo, a typeface made for biblical scholarship.
 </footer>
 
@@ -779,6 +809,7 @@ const store = {
   }
 };
 let DB = store.load();
+if (!DB.audio) DB.audio = { scheme: 'erasmian' };
 let state = DB.profiles[DB.active];
 let view = 'home';
 let currentLesson = null;
@@ -1468,6 +1499,134 @@ function unseenIndexes(stats, total, count) {
   const out = [];
   for (let i = 0; i < total && out.length < count; i++) if (!stats[i]) out.push(i);
   return out;
+}
+
+/* ============================================================
+   Audio: pronunciation via the Web Speech API.
+   Erasmian mode respells Greek into English phonetic syllables
+   (λόγος → "law-gaws") for an English voice — an approximation.
+   Modern mode uses a real Greek (el) voice when the device has one.
+============================================================ */
+const SPEAKER_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02s-1.02-3.28-2.5-4.03z"/><path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>';
+const AUDIO_OK = typeof speechSynthesis !== 'undefined';
+let VOICES = [];
+function refreshVoices() { try { VOICES = speechSynthesis.getVoices() || []; } catch (e) { VOICES = []; } }
+if (AUDIO_OK) { refreshVoices(); speechSynthesis.onvoiceschanged = refreshVoices; }
+function pickVoice(pre) {
+  refreshVoices();
+  return VOICES.find(v => v.lang && v.lang.toLowerCase().replace('_', '-').startsWith(pre)) || null;
+}
+function audioEnabled() { return AUDIO_OK && DB.audio.scheme !== 'off'; }
+function syncAudioClass() {
+  document.documentElement.classList.toggle('no-audio', !audioEnabled());
+}
+
+const ER_DIPH = { 'αι':'igh', 'ει':'ay', 'οι':'oy', 'υι':'wee', 'αυ':'ow', 'ευ':'yoo', 'ηυ':'yoo', 'ου':'oo' };
+const ER_VOWEL = { 'α':'ah', 'ε':'eh', 'η':'ay', 'ι':'ee', 'ο':'aw', 'ω':'oh', 'υ':'oo' };
+const ER_CONS = { 'β':'b','γ':'g','δ':'d','ζ':'z','θ':'th','κ':'k','λ':'l','μ':'m','ν':'n','ξ':'ks','π':'p','ρ':'r','σ':'s','τ':'t','φ':'f','χ':'k','ψ':'ps' };
+
+function respellGreekWord(w) {
+  const nfd = w.normalize('NFD');
+  const rough = nfd.indexOf('̔') !== -1;
+  let base = nfd
+    .replace(/[̀-ͯͅ᾽᾿῾’ʼ]/g, '')
+    .toLowerCase()
+    .replace(/ς/g, 'σ')
+    .replace(/[^α-ω]/g, '');
+  if (!base) return null;
+  // scan into vowel/consonant units, diphthongs first
+  const units = [];
+  for (let i = 0; i < base.length; i++) {
+    const two = base.slice(i, i + 2);
+    if (ER_DIPH[two]) { units.push({ v: ER_DIPH[two] }); i++; continue; }
+    const ch = base[i];
+    if (ER_VOWEL[ch]) { units.push({ v: ER_VOWEL[ch] }); continue; }
+    if (ch === 'γ' && i + 1 < base.length && 'γκχξ'.indexOf(base[i + 1]) !== -1) { units.push({ c: 'n' }); continue; }
+    if (ER_CONS[ch]) units.push({ c: ER_CONS[ch] });
+  }
+  // group into syllables: [onset consonants][vowel], trailing consonants close the last syllable
+  const groups = [];
+  let cons = [];
+  for (const u of units) {
+    if (u.c !== undefined) cons.push(u.c);
+    else { groups.push({ ons: cons, v: u.v }); cons = []; }
+  }
+  const coda = cons;
+  if (!groups.length) return null;
+  // a cluster of 2+ consonants between vowels: first consonant closes the previous syllable
+  for (let i = 1; i < groups.length; i++) {
+    if (groups[i].ons.length >= 2) {
+      groups[i - 1].coda = (groups[i - 1].coda || '') + groups[i].ons.shift();
+    }
+  }
+  const syls = groups.map(g => g.ons.join('') + g.v + (g.coda || ''));
+  if (coda.length) syls[syls.length - 1] += coda.join('');
+  if (rough && !groups[0].ons.length) syls[0] = 'h' + syls[0];
+  return syls.join('-');
+}
+
+function respellGreek(text) {
+  return text.split(/\s+/)
+    .map(w => respellGreekWord(w))
+    .filter(Boolean)
+    .join(', ');
+}
+
+function speak(text) {
+  if (!audioEnabled()) return;
+  try {
+    speechSynthesis.cancel();
+    let u = null;
+    if (DB.audio.scheme === 'modern') {
+      const v = pickVoice('el');
+      if (v) {
+        u = new SpeechSynthesisUtterance(text);
+        u.voice = v;
+        u.lang = v.lang;
+        u.rate = 0.85;
+      }
+    }
+    if (!u) {
+      const r = respellGreek(text);
+      if (!r) return;
+      u = new SpeechSynthesisUtterance(r);
+      const v = pickVoice('en-us') || pickVoice('en');
+      if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'en-US'; }
+      u.rate = 0.8;
+    }
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+function speakEn(text) {
+  if (!audioEnabled()) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    const v = pickVoice('en-us') || pickVoice('en');
+    if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'en-US'; }
+    u.rate = 0.9;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+function speakBtn(t, fn) {
+  return `<button class="speak-btn" aria-label="Hear it pronounced" title="Hear it"
+    onclick="event.stopPropagation(); ${fn || 'speak'}(this.dataset.gk)"
+    data-gk="${String(t).replace(/"/g, '&quot;')}">${SPEAKER_SVG}</button>`;
+}
+
+function setAudioScheme(s) {
+  DB.audio.scheme = s;
+  store.save();
+  syncAudioClass();
+  try { speechSynthesis.cancel(); } catch (e) {}
+  render();
+}
+
+function passageListenHTML(p) {
+  const full = p.verses.map(v => v.words.map(w => w[0]).join(' ')).join(' ');
+  return `<div class="listen-row">${speakBtn(full)}<span>Listen to the whole passage</span></div>`;
 }
 
 /* ============================================================
@@ -3020,7 +3179,7 @@ function showLetter(i) {
   if (!d) return;
   d.innerHTML = `
     <div class="letter-detail">
-      <span class="big greek">${L.up} ${L.low}</span>
+      <span class="big greek">${L.up} ${L.low}</span> ${speakBtn(L.name, 'speakEn')}
       <dl>
         <div class="row"><dt>Name:</dt><dd>${L.name}</dd> &nbsp; <dt>Transliteration:</dt><dd>${L.tr}</dd></div>
         <div class="row"><dt>Sound:</dt><dd>${L.sound}</dd></div>
@@ -3048,7 +3207,7 @@ function showGloss(pid, vi, wi) {
   const w = verse.words[wi];
   document.querySelectorAll('.il-word').forEach(b => b.classList.remove('sel'));
   const g = document.getElementById('il-gloss');
-  if (g) g.innerHTML = `<span class="gk">${w[0].replace(/[,.·]$/,'')}</span> &nbsp;<b>${w[1]}</b> — ${w[2]}`;
+  if (g) g.innerHTML = `${speakBtn(w[0].replace(/[,.·]$/,''))} <span class="gk">${w[0].replace(/[,.·]$/,'')}</span> &nbsp;<b>${w[1]}</b> — ${w[2]}`;
 }
 
 /* ---------- flashcards ---------- */
@@ -3093,6 +3252,7 @@ function renderCards() {
         <span class="hint">tap to reveal</span>
       `}
     </button>
+    <div class="listen-row centered">${speakBtn(c.w)}<span>hear it</span></div>
     <div class="card-actions" style="visibility:${deck.flipped ? 'visible' : 'hidden'}">
       <button class="btn again" onclick="gradeCard(false)">Again</button>
       <button class="btn got" onclick="gradeCard(true)">Got it</button>
@@ -3187,6 +3347,7 @@ function drillCardHTML() {
         ${s.note ? `<span class="hint" style="max-width:34rem">${s.note}</span>` : ''}
       ` : `<span class="hint">translate it in your head, then tap to reveal</span>`}
     </button>
+    <div class="listen-row centered">${speakBtn(s.gk)}<span>hear it read aloud</span></div>
     <div class="card-actions" style="visibility:${drill.revealed ? 'visible' : 'hidden'}">
       <button class="btn again" onclick="gradeDrill(false)">Again</button>
       <button class="btn got" onclick="gradeDrill(true)">Got it</button>
@@ -3233,7 +3394,7 @@ function renderPassage() {
       <button class="chip ${rd.mode === 'read' ? 'active' : ''}" onclick="setPassageMode('read')">Read with glosses</button>
       <button class="chip ${rd.mode === 'translate' ? 'active' : ''}" onclick="setPassageMode('translate')">Translate it yourself</button>
     </div>
-    <div id="passage-body">${rd.mode === 'read' ? interlinearHTML(currentPassage) : translateHTML(p)}</div>`;
+    <div id="passage-body">${rd.mode === 'read' ? interlinearHTML(currentPassage) + passageListenHTML(p) : translateHTML(p)}</div>`;
 }
 
 function translateHTML(p) {
@@ -3261,6 +3422,7 @@ function translateHTML(p) {
       <div style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:0.6rem">
         Verse ${rd.vi + 1} of ${p.verses.length} · ${v.ref || v.v}</div>
       <div class="vgreek greek">${v.words.map(w => w[0]).join(' ')}</div>
+      <div class="listen-row">${speakBtn(v.words.map(w => w[0]).join(' '))}<span>hear the verse</span></div>
       ${rd.revealed ? `
         <div class="ven">${v.en}</div>
         <div class="vnote">How close were you? Grade yourself honestly — misses return sooner next pass.</div>
@@ -3325,7 +3487,7 @@ function parseCardHTML(i, seed, onAnswer) {
   return `
     <div class="quiz" style="margin-top:1rem">
       <div class="kicker">${q.mode === 0 ? 'Parse this form' : 'What does it mean?'}</div>
-      <p class="parse-form greek">${f.f}</p>
+      <p class="parse-form greek">${f.f} ${speakBtn(f.f)}</p>
       <p class="parse-lemma">from <span class="gk">${f.l.split(' — ')[0]}</span> — ${f.l.split(' — ')[1] || ''}</p>
       <div class="choices">
         ${q.choices.map(c => `<button class="choice" data-correct="${c === q.answer}" onclick="${onAnswer}(this)">${c}</button>`).join('')}
@@ -3484,6 +3646,7 @@ function renderToday() {
           <span class="hint">tap to reveal</span>
         `}
       </button>
+      <div class="listen-row centered">${speakBtn(c.w)}<span>hear it</span></div>
       <div class="card-actions" style="visibility:${td.flipped ? 'visible' : 'hidden'}">
         <button class="btn again" onclick="gradeTodayCard(false)">Again</button>
         <button class="btn got" onclick="gradeTodayCard(true)">Got it</button>
@@ -3501,6 +3664,7 @@ function renderToday() {
           ${s.note ? `<span class="hint" style="max-width:34rem">${s.note}</span>` : ''}
         ` : `<span class="hint">translate it in your head, then tap to reveal</span>`}
       </button>
+      <div class="listen-row centered">${speakBtn(s.gk)}<span>hear it read aloud</span></div>
       <div class="card-actions" style="visibility:${td.flipped ? 'visible' : 'hidden'}">
         <button class="btn again" onclick="gradeTodayVerse(false)">Missed it</button>
         <button class="btn got" onclick="gradeTodayVerse(true)">Got it</button>
@@ -3595,7 +3759,28 @@ function renderProfiles() {
       <input id="new-profile-name" maxlength="24" placeholder="New profile name"
         onkeydown="if(event.key==='Enter')createProfile()">
       <button class="btn" onclick="createProfile()">Add profile</button>
-    </div>`;
+    </div>
+    <div class="lesson-head" style="margin-top:2.5rem">
+      <span class="kicker">Settings · this device</span>
+      <h2 style="font-size:1.5rem">Pronunciation</h2>
+      <p style="color:var(--ink-soft);font-size:0.9rem;margin:0.4rem 0 0">Speaker buttons throughout
+      the app read Greek aloud using your device's speech synthesis.</p>
+    </div>
+    ${AUDIO_OK ? `
+    <div class="deck-controls">
+      ${[['erasmian','Erasmian (approximated)'],['modern','Modern Greek voice'],['off','Off']].map(([k, label]) =>
+        `<button class="chip ${DB.audio.scheme === k ? 'active' : ''}" onclick="setAudioScheme('${k}')">${label}</button>`).join('')}
+      ${DB.audio.scheme !== 'off' ? `<span style="align-self:center">${speakBtn('ἐν ἀρχῇ ἦν ὁ λόγος')}</span>
+      <span style="align-self:center;font-size:0.8rem;color:var(--ink-soft)">try it</span>` : ''}
+    </div>
+    <p style="font-size:0.82rem;color:var(--ink-soft);max-width:42rem">
+      <strong>Erasmian</strong> matches this course's lessons but is synthesized from English speech —
+      a study aid, not a native recording. <strong>Modern Greek</strong> is how Greek is pronounced
+      today (and read aloud in Greek churches); it needs a Greek voice on your device —
+      ${pickVoice('el') ? 'one is available here.' : 'none detected here, so it falls back to Erasmian.'}
+    </p>` : `
+    <p style="font-size:0.82rem;color:var(--ink-soft)">This browser does not support speech synthesis,
+    so audio is unavailable.</p>`}`;
 }
 
 /* ---------- reference ---------- */
@@ -3707,6 +3892,7 @@ function renderRef() {
     </div>`;
 }
 
+syncAudioClass();
 render();
 </script>
 </body>
