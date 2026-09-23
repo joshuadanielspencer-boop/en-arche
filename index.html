@@ -3740,7 +3740,7 @@ function gradeTodayVerse(right) {
 let backupNote = '';
 let backupNoteOk = true;
 
-function exportProgress() {
+async function exportProgress() {
   const payload = {
     app: 'en-arche',
     format: 2,
@@ -3748,11 +3748,31 @@ function exportProgress() {
     active: DB.active,
     profiles: DB.profiles,
   };
+  const json = JSON.stringify(payload, null, 2);
+  const filename = 'en-arche-progress-' + todayStr() + '.json';
+  // Inside the claude.ai artifact viewer, script-driven downloads are blocked;
+  // the viewer's own save dialog (downloads capability) is the supported path.
   try {
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    if (window.claude && typeof window.claude.use === 'function') {
+      const dl = await window.claude.use('downloads');
+      if (dl) {
+        try {
+          await dl.save({ filename, data: json });
+          backupNote = 'Progress file saved — keep it somewhere safe, or open it on another device and import it there.';
+          backupNoteOk = true;
+        } catch (err) {
+          backupNote = err && err.code === 'declined' ? 'Save cancelled.' : 'Export is unavailable in this view.';
+          backupNoteOk = false;
+        }
+        return render();
+      }
+    }
+  } catch (e) {}
+  try {
+    const blob = new Blob([json], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'en-arche-progress-' + todayStr() + '.json';
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
