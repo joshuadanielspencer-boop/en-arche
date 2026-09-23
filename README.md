@@ -28,7 +28,12 @@ in the browser's localStorage.
 - **Reading tab** — six guided passages, each with a tap-to-gloss interlinear
   and a translate-it-yourself mode, plus a self-graded drill of twenty short
   famous verses
-- **Flashcards** — ~100 high-frequency NT words; missed cards resurface first
+- **Daily review** — a one-tap session on the home path: vocabulary due today
+  (SM-2-style spaced repetition), five parsing questions, and one verse, with a
+  day-streak counter
+- **Parsing drills** — 90 real inflected forms from the lessons; identify the
+  parse or the meaning, scheduled for review like vocabulary
+- **Flashcards** — ~100 high-frequency NT words on the same review scheduler
 - **Reference** — alphabet, all 24 article forms, all three declensions, the
   verb system at a glance, second aorists on sight, prepositions
 - **Profiles** — several people can study in the same browser, each with

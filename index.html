@@ -648,6 +648,56 @@
   .verse-block .vnote { font-size: 0.85rem; color: var(--ink-soft); margin-top: 0.5rem; }
   .drill-ref { font-size: 0.78rem; color: var(--gold); font-weight: 600; letter-spacing: 0.04em; }
 
+  /* ---------- today / daily review ---------- */
+  .today-panel {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--gold);
+    border-radius: 12px;
+    padding: 1.1rem 1.3rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+    flex-wrap: wrap;
+  }
+  .streak-badge { text-align: center; flex: none; }
+  .streak-badge .num {
+    font-family: "Cardo", Georgia, serif;
+    font-size: 2.2rem;
+    line-height: 1;
+    color: var(--gold);
+  }
+  .streak-badge .lbl {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .today-meta { min-width: 12rem; flex: 1; }
+  .today-meta h3 { font-size: 1.15rem; margin-bottom: 0.15rem; }
+  .today-meta p { margin: 0; font-size: 0.85rem; color: var(--ink-soft); }
+  .today-done { color: var(--moss); font-weight: 600; }
+  .session-progress {
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .session-progress .progress-track { width: 140px; }
+  .parse-form {
+    font-family: "Cardo", Georgia, serif;
+    font-size: 2.2rem;
+    color: var(--lapis);
+    line-height: 1.2;
+    margin: 0 0 0.2rem;
+  }
+  .parse-lemma { font-size: 0.85rem; color: var(--ink-soft); margin: 0 0 1rem; }
+  .parse-lemma .gk { font-size: 1.05rem; }
+
   footer.colophon {
     max-width: 780px;
     margin: 0 auto;
@@ -660,8 +710,10 @@
 
   @media (max-width: 560px) {
     .bar-inner { flex-wrap: wrap; padding-bottom: 0.5rem; }
-    nav.tabs { margin-left: 0; width: 100%; justify-content: space-between; }
+    nav.tabs { margin-left: 0; width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 0.15rem; }
+    .tab { font-size: 0.8rem; padding: 0.3rem 0.65rem; }
     .lesson-state { display: none; }
+    .today-panel { gap: 0.9rem; }
   }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; }
@@ -677,6 +729,7 @@
       <button class="tab" id="tab-home" onclick="go('home')">Path</button>
       <button class="tab" id="tab-reading" onclick="go('reading')">Reading</button>
       <button class="tab" id="tab-cards" onclick="go('cards')">Flashcards</button>
+      <button class="tab" id="tab-drills" onclick="go('drills')">Drills</button>
       <button class="tab" id="tab-ref" onclick="go('ref')">Reference</button>
       <button class="tab profile-chip" id="tab-profiles" onclick="go('profiles')" title="Profiles">—</button>
     </nav>
@@ -695,10 +748,12 @@
    State & storage
 ============================================================ */
 function blankProfile() {
-  return { lessons: {}, cards: {}, reading: {}, drill: {} };
+  return { lessons: {}, cards: {}, reading: {}, drill: {}, parse: {}, daily: { streak: 0, last: null } };
 }
 function normalizeProfile(p) {
-  return Object.assign(blankProfile(), p || {});
+  const out = Object.assign(blankProfile(), p || {});
+  if (!out.daily || typeof out.daily !== 'object') out.daily = { streak: 0, last: null };
+  return out;
 }
 const store = {
   load() {
@@ -734,6 +789,7 @@ function switchProfile(name) {
   state = DB.profiles[name];
   deck.order = [];
   drill.order = [];
+  pd.order = [];
   store.save();
   go('home');
 }
@@ -756,6 +812,7 @@ function deleteProfile(name) {
     state = DB.profiles[DB.active];
     deck.order = [];
     drill.order = [];
+    pd.order = [];
   }
   store.save();
   render();
@@ -1373,6 +1430,154 @@ const SENTENCES = [
   { gk:'ἡ ἀγάπη οὐδέποτε πίπτει.', ref:'1 Corinthians 13:8', en:'Love never fails.', note:'πίπτει — literally "falls." Present tense: never, at any time.', tier:3 },
   { gk:'εἰρήνην ἀφίημι ὑμῖν, εἰρήνην τὴν ἐμὴν δίδωμι ὑμῖν.', ref:'John 14:27', en:'Peace I leave with you; my peace I give to you.', note:'The objects stand first for emphasis — Greek word order at work.', tier:3 },
   { gk:'ἀκολούθει μοι.', ref:'Matthew 9:9', en:'Follow me.', note:'Present imperative + dative: keep following, as a way of life.', tier:3 },
+];
+
+/* ============================================================
+   Spaced-repetition scheduler (SM-2 style, two-button grading)
+============================================================ */
+function todayStr(offset = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function schedule(st, right) {
+  st.seen = (st.seen || 0) + 1;
+  if (right) st.right = (st.right || 0) + 1;
+  st.ease = st.ease || 2.3;
+  if (right) {
+    st.reps = (st.reps || 0) + 1;
+    st.interval = st.reps === 1 ? 1 : st.reps === 2 ? 3 : Math.round((st.interval || 3) * st.ease);
+    st.ease = Math.min(2.8, st.ease + 0.05);
+  } else {
+    st.reps = 0;
+    st.interval = 0;
+    st.ease = Math.max(1.3, st.ease - 0.2);
+  }
+  st.due = todayStr(st.interval);
+  return st;
+}
+function dueIndexes(stats, count) {
+  const t = todayStr();
+  return Object.keys(stats)
+    .filter(k => stats[k].due && stats[k].due <= t)
+    .sort((a, b) => (stats[a].due < stats[b].due ? -1 : 1))
+    .map(Number)
+    .slice(0, count);
+}
+function unseenIndexes(stats, total, count) {
+  const out = [];
+  for (let i = 0; i < total && out.length < count; i++) if (!stats[i]) out.push(i);
+  return out;
+}
+
+/* ============================================================
+   Data: parsing drill forms
+   f: form · l: lemma line · p: parse · g: gloss · c: category
+============================================================ */
+const PARSE_CATS = [
+  ['all', 'Everything'],
+  ['pres', 'Present, imperfect & εἰμί'],
+  ['past', 'Future & aorist'],
+  ['perf', 'Perfect, passive & middle'],
+  ['moods', 'Participles, infinitives & moods'],
+  ['nouns', 'Noun & article cases'],
+];
+const FORMS = [
+  // --- present & imperfect & eimi ---
+  { f:'λύεις', l:'λύω — I loose', p:'present active indicative, 2nd singular', g:'you loose', c:'pres' },
+  { f:'λύομεν', l:'λύω — I loose', p:'present active indicative, 1st plural', g:'we loose', c:'pres' },
+  { f:'λέγει', l:'λέγω — I say', p:'present active indicative, 3rd singular', g:'he says', c:'pres' },
+  { f:'ἔχετε', l:'ἔχω — I have', p:'present active indicative, 2nd plural', g:'you all have', c:'pres' },
+  { f:'ἀκούουσιν', l:'ἀκούω — I hear', p:'present active indicative, 3rd plural', g:'they hear', c:'pres' },
+  { f:'πιστεύω', l:'πιστεύω — I believe', p:'present active indicative, 1st singular', g:'I believe', c:'pres' },
+  { f:'ἔλυες', l:'λύω — I loose', p:'imperfect active indicative, 2nd singular', g:'you were loosing', c:'pres' },
+  { f:'ἐλύομεν', l:'λύω — I loose', p:'imperfect active indicative, 1st plural', g:'we were loosing', c:'pres' },
+  { f:'ἔλεγεν', l:'λέγω — I say', p:'imperfect active indicative, 3rd singular', g:'he was saying', c:'pres' },
+  { f:'εἶχον', l:'ἔχω — I have', p:'imperfect active indicative, 1st singular or 3rd plural', g:'I had / they had', c:'pres' },
+  { f:'ἤκουεν', l:'ἀκούω — I hear', p:'imperfect active indicative, 3rd singular', g:'he was hearing', c:'pres' },
+  { f:'ἐστίν', l:'εἰμί — I am', p:'present indicative of εἰμί, 3rd singular', g:'he/she/it is', c:'pres' },
+  { f:'ἐσμέν', l:'εἰμί — I am', p:'present indicative of εἰμί, 1st plural', g:'we are', c:'pres' },
+  { f:'εἶ', l:'εἰμί — I am', p:'present indicative of εἰμί, 2nd singular', g:'you are', c:'pres' },
+  { f:'εἰσίν', l:'εἰμί — I am', p:'present indicative of εἰμί, 3rd plural', g:'they are', c:'pres' },
+  { f:'ἦν', l:'εἰμί — I am', p:'imperfect indicative of εἰμί, 3rd singular', g:'he/she/it was', c:'pres' },
+  { f:'ἦσαν', l:'εἰμί — I am', p:'imperfect indicative of εἰμί, 3rd plural', g:'they were', c:'pres' },
+  { f:'ἔρχεται', l:'ἔρχομαι — I come (deponent)', p:'present middle indicative, 3rd singular', g:'he comes', c:'pres' },
+  { f:'ἐρχόμεθα', l:'ἔρχομαι — I come (deponent)', p:'present middle indicative, 1st plural', g:'we come', c:'pres' },
+  { f:'γίνονται', l:'γίνομαι — I become (deponent)', p:'present middle indicative, 3rd plural', g:'they become', c:'pres' },
+  { f:'ἀποκρίνεται', l:'ἀποκρίνομαι — I answer (deponent)', p:'present middle indicative, 3rd singular (deponent)', g:'he answers', c:'pres' },
+  { f:'πορεύῃ', l:'πορεύομαι — I go (deponent)', p:'present middle indicative, 2nd singular', g:'you go, travel', c:'pres' },
+  // --- future & aorist ---
+  { f:'λύσει', l:'λύω — I loose', p:'future active indicative, 3rd singular', g:'he will loose', c:'past' },
+  { f:'πέμψω', l:'πέμπω — I send', p:'future active indicative, 1st singular', g:'I will send', c:'past' },
+  { f:'βαπτίσεις', l:'βαπτίζω — I baptize', p:'future active indicative, 2nd singular', g:'you will baptize', c:'past' },
+  { f:'ἀκούσομεν', l:'ἀκούω — I hear', p:'future active indicative, 1st plural', g:'we will hear', c:'past' },
+  { f:'γνώσεσθε', l:'γινώσκω — I know', p:'future middle indicative, 2nd plural (deponent future)', g:'you will know', c:'past' },
+  { f:'ἔσται', l:'εἰμί — I am', p:'future indicative of εἰμί, 3rd singular', g:'he/she/it will be', c:'past' },
+  { f:'ἔλυσας', l:'λύω — I loose', p:'first aorist active indicative, 2nd singular', g:'you loosed', c:'past' },
+  { f:'ἐπίστευσεν', l:'πιστεύω — I believe', p:'first aorist active indicative, 3rd singular', g:'he believed', c:'past' },
+  { f:'ἠκούσαμεν', l:'ἀκούω — I hear', p:'first aorist active indicative, 1st plural', g:'we heard', c:'past' },
+  { f:'ἠγάπησαν', l:'ἀγαπάω — I love', p:'first aorist active indicative, 3rd plural', g:'they loved', c:'past' },
+  { f:'ἐβάπτισα', l:'βαπτίζω — I baptize', p:'first aorist active indicative, 1st singular', g:'I baptized', c:'past' },
+  { f:'εἶπεν', l:'λέγω — I say', p:'second aorist active indicative, 3rd singular', g:'he said', c:'past' },
+  { f:'ἦλθες', l:'ἔρχομαι — I come', p:'second aorist active indicative, 2nd singular', g:'you came', c:'past' },
+  { f:'ἐλάβομεν', l:'λαμβάνω — I take, receive', p:'second aorist active indicative, 1st plural', g:'we received', c:'past' },
+  { f:'εἶδον', l:'ὁράω — I see', p:'second aorist active indicative, 1st singular or 3rd plural', g:'I saw / they saw', c:'past' },
+  { f:'ἔγνω', l:'γινώσκω — I know', p:'second aorist active indicative of γινώσκω, 3rd singular', g:'he knew', c:'past' },
+  { f:'εὗρεν', l:'εὑρίσκω — I find', p:'second aorist active indicative of εὑρίσκω, 3rd singular', g:'he found', c:'past' },
+  { f:'ἐγένετο', l:'γίνομαι — I become', p:'second aorist middle indicative, 3rd singular', g:'it came to pass, he became', c:'past' },
+  // --- perfect, passive & middle ---
+  { f:'γέγραπται', l:'γράφω — I write', p:'perfect middle/passive indicative, 3rd singular', g:'it stands written', c:'perf' },
+  { f:'γέγονεν', l:'γίνομαι — I become', p:'perfect active indicative, 3rd singular', g:'it has come to be', c:'perf' },
+  { f:'ἀκηκόαμεν', l:'ἀκούω — I hear', p:'perfect active indicative, 1st plural', g:'we have heard', c:'perf' },
+  { f:'σέσωκεν', l:'σῴζω — I save', p:'perfect active indicative of σῴζω, 3rd singular', g:'he has saved', c:'perf' },
+  { f:'λελύκατε', l:'λύω — I loose', p:'perfect active indicative, 2nd plural', g:'you have loosed', c:'perf' },
+  { f:'τετέλεσται', l:'τελέω — I finish', p:'perfect middle/passive indicative of τελέω, 3rd singular', g:'it has been finished', c:'perf' },
+  { f:'ἐβαπτίσθη', l:'βαπτίζω — I baptize', p:'aorist passive indicative, 3rd singular', g:'he was baptized', c:'perf' },
+  { f:'ἠγέρθη', l:'ἐγείρω — I raise', p:'aorist passive indicative of ἐγείρω, 3rd singular', g:'he was raised', c:'perf' },
+  { f:'ἐσώθημεν', l:'σῴζω — I save', p:'aorist passive indicative, 1st plural', g:'we were saved', c:'perf' },
+  { f:'ἐλύθησαν', l:'λύω — I loose', p:'aorist passive indicative, 3rd plural', g:'they were loosed', c:'perf' },
+  { f:'ἀπεκρίθη', l:'ἀποκρίνομαι — I answer (deponent)', p:'aorist passive-form indicative, 3rd singular — active meaning', g:'he answered', c:'perf' },
+  { f:'λύομαι', l:'λύω — I loose', p:'present middle/passive indicative, 1st singular', g:'I am loosed / loose for myself', c:'perf' },
+  // --- participles, infinitives & moods ---
+  { f:'λύων', l:'λύω — I loose', p:'present active participle, nominative masculine singular', g:'loosing', c:'moods' },
+  { f:'ὁ πιστεύων', l:'πιστεύω — I believe', p:'present active participle with article, nominative masculine singular', g:'the one who believes', c:'moods' },
+  { f:'λέγοντες', l:'λέγω — I say', p:'present active participle, nominative masculine plural', g:'saying (they)', c:'moods' },
+  { f:'ὤν', l:'εἰμί — I am', p:'present participle of εἰμί, nominative masculine singular', g:'being', c:'moods' },
+  { f:'ἐλθών', l:'ἔρχομαι — I come', p:'second aorist active participle, nominative masculine singular', g:'having come', c:'moods' },
+  { f:'ἰδών', l:'ὁράω — I see', p:'second aorist active participle of ὁράω, nominative masculine singular', g:'having seen', c:'moods' },
+  { f:'ἀποκριθείς', l:'ἀποκρίνομαι — I answer', p:'aorist passive-form participle, nominative masculine singular', g:'having answered', c:'moods' },
+  { f:'λυόμενος', l:'λύω — I loose', p:'present middle/passive participle, nominative masculine singular', g:'being loosed', c:'moods' },
+  { f:'λύειν', l:'λύω — I loose', p:'present active infinitive', g:'to loose (ongoing)', c:'moods' },
+  { f:'λῦσαι', l:'λύω — I loose', p:'aorist active infinitive', g:'to loose (simple)', c:'moods' },
+  { f:'εἶναι', l:'εἰμί — I am', p:'present infinitive of εἰμί', g:'to be', c:'moods' },
+  { f:'γενέσθαι', l:'γίνομαι — I become', p:'aorist middle infinitive', g:'to become', c:'moods' },
+  { f:'εἰπεῖν', l:'λέγω — I say', p:'second aorist active infinitive', g:'to say', c:'moods' },
+  { f:'λῦσον', l:'λύω — I loose', p:'aorist active imperative, 2nd singular', g:'loose! (simply, now)', c:'moods' },
+  { f:'δός', l:'δίδωμι — I give', p:'aorist active imperative of δίδωμι, 2nd singular', g:'give!', c:'moods' },
+  { f:'ἄφες', l:'ἀφίημι — I forgive, release', p:'aorist active imperative of ἀφίημι, 2nd singular', g:'forgive! release!', c:'moods' },
+  { f:'ἐλθέτω', l:'ἔρχομαι — I come', p:'aorist active imperative, 3rd singular', g:'let him/it come!', c:'moods' },
+  { f:'ἁγιασθήτω', l:'ἁγιάζω — I hallow', p:'aorist passive imperative, 3rd singular', g:'let it be hallowed!', c:'moods' },
+  { f:'ἀκολούθει', l:'ἀκολουθέω — I follow', p:'present active imperative, 2nd singular', g:'follow! (keep following)', c:'moods' },
+  { f:'μὴ φοβοῦ', l:'φοβέομαι — I fear (deponent)', p:'present middle imperative with μή, 2nd singular', g:'do not fear!', c:'moods' },
+  { f:'λύωμεν', l:'λύω — I loose', p:'present active subjunctive, 1st plural', g:'let us loose / we may loose', c:'moods' },
+  { f:'πιστεύητε', l:'πιστεύω — I believe', p:'present active subjunctive, 2nd plural', g:'you may believe', c:'moods' },
+  { f:'ἔχῃ', l:'ἔχω — I have', p:'present active subjunctive, 3rd singular', g:'he may have', c:'moods' },
+  { f:'εἴπωμεν', l:'λέγω — I say', p:'aorist active subjunctive, 1st plural', g:'we may say', c:'moods' },
+  // --- noun & article cases ---
+  { f:'τοῦ λόγου', l:'ὁ λόγος — the word', p:'genitive singular masculine', g:'of the word', c:'nouns' },
+  { f:'τῷ λόγῳ', l:'ὁ λόγος — the word', p:'dative singular masculine', g:'to/for the word', c:'nouns' },
+  { f:'τοὺς λόγους', l:'ὁ λόγος — the word', p:'accusative plural masculine', g:'the words (as object)', c:'nouns' },
+  { f:'οἱ ἄνθρωποι', l:'ὁ ἄνθρωπος — the man', p:'nominative plural masculine', g:'the men (as subject)', c:'nouns' },
+  { f:'τῆς ἀρχῆς', l:'ἡ ἀρχή — the beginning', p:'genitive singular feminine', g:'of the beginning', c:'nouns' },
+  { f:'τῇ καρδίᾳ', l:'ἡ καρδία — the heart', p:'dative singular feminine', g:'to/in the heart', c:'nouns' },
+  { f:'τὴν ζωήν', l:'ἡ ζωή — the life', p:'accusative singular feminine', g:'the life (as object)', c:'nouns' },
+  { f:'τὰς ἁμαρτίας', l:'ἡ ἁμαρτία — the sin', p:'accusative plural feminine', g:'the sins (as object)', c:'nouns' },
+  { f:'τὰ ἔργα', l:'τὸ ἔργον — the work', p:'nominative or accusative plural neuter', g:'the works', c:'nouns' },
+  { f:'τοῖς μαθηταῖς', l:'ὁ μαθητής — the disciple', p:'dative plural masculine', g:'to the disciples', c:'nouns' },
+  { f:'τοῦ πατρός', l:'ὁ πατήρ — the father', p:'genitive singular masculine (third declension)', g:'of the father', c:'nouns' },
+  { f:'τῷ πνεύματι', l:'τὸ πνεῦμα — the spirit', p:'dative singular neuter (third declension)', g:'to/by the spirit', c:'nouns' },
+  { f:'τῆς πίστεως', l:'ἡ πίστις — faith', p:'genitive singular feminine (third declension)', g:'of faith', c:'nouns' },
+  { f:'τῶν οὐρανῶν', l:'ὁ οὐρανός — heaven', p:'genitive plural masculine', g:'of the heavens', c:'nouns' },
 ];
 
 /* ============================================================
@@ -2644,7 +2849,8 @@ function go(v, lessonId) {
 
 function render() {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  const tabId = view === 'lesson' ? 'tab-home' : view === 'passage' ? 'tab-reading' : 'tab-' + view;
+  const tabId = (view === 'lesson' || view === 'today') ? 'tab-home'
+    : view === 'passage' ? 'tab-reading' : 'tab-' + view;
   const tab = document.getElementById(tabId);
   if (tab) tab.classList.add('active');
   const chip = document.getElementById('tab-profiles');
@@ -2655,6 +2861,8 @@ function render() {
   else if (view === 'reading') renderReading();
   else if (view === 'passage') renderPassage();
   else if (view === 'cards') renderCards();
+  else if (view === 'drills') renderDrills();
+  else if (view === 'today') renderToday();
   else if (view === 'ref') renderRef();
   else if (view === 'profiles') renderProfiles();
 }
@@ -2676,6 +2884,7 @@ function renderHome() {
         <span>${pct}%</span>
       </div>
     </div>
+    ${todayPanelHTML()}
     <div class="path">
       ${LESSONS.map((l, i) => {
         const st = state.lessons[l.id];
@@ -2896,9 +3105,8 @@ function setFilter(f) { deck.filter = f; buildDeck(); renderCards(); }
 function flipCard() { deck.flipped = !deck.flipped; renderCards(); }
 function gradeCard(right) {
   const i = deck.order[deck.pos % deck.order.length];
-  const st = state.cards[i] || { seen: 0, right: 0 };
-  st.seen++;
-  if (right) st.right++;
+  const st = state.cards[i] || {};
+  schedule(st, right);
   state.cards[i] = st;
   store.save(state);
   if (!right) {
@@ -2990,9 +3198,8 @@ function setDrillTier(t) { drill.tier = t; buildDrill(); renderReading(); }
 function revealDrill() { drill.revealed = !drill.revealed; renderReading(); }
 function gradeDrill(right) {
   const i = drill.order[drill.pos % drill.order.length];
-  const st = state.drill[i] || { seen: 0, right: 0 };
-  st.seen++;
-  if (right) st.right++;
+  const st = state.drill[i] || {};
+  schedule(st, right);
   state.drill[i] = st;
   store.save();
   if (!right) drill.order.splice(Math.min(drill.pos + 3, drill.order.length), 0, i);
@@ -3075,6 +3282,284 @@ function gradeVerse(right) {
   rd.vi++;
   rd.revealed = false;
   renderPassage();
+}
+
+/* ---------- parsing drills ---------- */
+let pd = { cat: 'all', order: [], pos: 0, answered: false, n: 0 };
+
+function buildParse() {
+  const t = todayStr();
+  const idxs = FORMS.map((f, i) => i).filter(i => pd.cat === 'all' || FORMS[i].c === pd.cat);
+  idxs.sort((a, b) => {
+    const sa = state.parse[a], sb = state.parse[b];
+    const dueA = sa && sa.due && sa.due <= t ? 0 : 1;
+    const dueB = sb && sb.due && sb.due <= t ? 0 : 1;
+    if (dueA !== dueB) return dueA - dueB;
+    const wa = sa ? sa.right - sa.seen * 0.4 : -0.1;
+    const wb = sb ? sb.right - sb.seen * 0.4 : -0.1;
+    return wa - wb || a - b;
+  });
+  pd.order = idxs;
+  pd.pos = 0;
+  pd.answered = false;
+}
+
+function parseQuestion(i, seed) {
+  const f = FORMS[i];
+  const mode = seed % 2; // 0 = give the parse, 1 = give the meaning
+  const key = mode === 0 ? 'p' : 'g';
+  const pool = FORMS.filter((x, j) => j !== i && x.c === f.c);
+  const shuffledPool = shuffleDeterministic(pool, seed + i * 31);
+  const seen = new Set([f[key]]);
+  const distractors = [];
+  for (const x of shuffledPool) {
+    if (!seen.has(x[key])) { seen.add(x[key]); distractors.push(x[key]); }
+    if (distractors.length === 3) break;
+  }
+  return { mode, answer: f[key], choices: shuffleDeterministic([f[key], ...distractors], seed * 7 + i) };
+}
+
+function parseCardHTML(i, seed, onAnswer) {
+  const f = FORMS[i];
+  const q = parseQuestion(i, seed);
+  return `
+    <div class="quiz" style="margin-top:1rem">
+      <div class="kicker">${q.mode === 0 ? 'Parse this form' : 'What does it mean?'}</div>
+      <p class="parse-form greek">${f.f}</p>
+      <p class="parse-lemma">from <span class="gk">${f.l.split(' — ')[0]}</span> — ${f.l.split(' — ')[1] || ''}</p>
+      <div class="choices">
+        ${q.choices.map(c => `<button class="choice" data-correct="${c === q.answer}" onclick="${onAnswer}(this)">${c}</button>`).join('')}
+      </div>
+      <div class="feedback" id="parse-feedback"></div>
+    </div>`;
+}
+
+function renderDrills() {
+  if (!pd.order.length) buildParse();
+  const t = todayStr();
+  const due = Object.keys(state.parse).filter(k => state.parse[k].due && state.parse[k].due <= t).length;
+  const mastered = Object.values(state.parse).filter(s => (s.reps || 0) >= 3).length;
+  const i = pd.order[pd.pos % pd.order.length];
+  app.innerHTML = `
+    <div class="lesson-head" style="margin-top:0.5rem">
+      <span class="kicker">Form recognition</span>
+      <h2>Parsing Drills</h2>
+      <p style="color:var(--ink-soft);font-size:0.9rem;margin:0.4rem 0 0">Reading fluency is seeing
+      <span class="gk">ἐλύσαμεν</span> and knowing instantly: aorist, "we." ${FORMS.length} real forms
+      from the lessons — identify the grammar or the meaning. ${due} due for review · ${mastered} mastered.</p>
+    </div>
+    <div class="deck-controls">
+      ${PARSE_CATS.map(([k, label]) =>
+        `<button class="chip ${pd.cat === k ? 'active' : ''}" onclick="setParseCat('${k}')">${label}</button>`).join('')}
+    </div>
+    ${parseCardHTML(i, pd.n * 13 + i, 'answerParse')}
+    <div class="deck-stats">Form ${(pd.pos % pd.order.length) + 1} of ${pd.order.length} in this set</div>`;
+}
+
+function setParseCat(c) { pd.cat = c; pd.n++; buildParse(); renderDrills(); }
+
+function answerParse(btn) {
+  if (pd.answered) return;
+  pd.answered = true;
+  const i = pd.order[pd.pos % pd.order.length];
+  const correct = btn.dataset.correct === 'true';
+  const st = state.parse[i] || {};
+  schedule(st, correct);
+  state.parse[i] = st;
+  store.save();
+  document.querySelectorAll('.choice').forEach(c => {
+    c.disabled = true;
+    if (c.dataset.correct === 'true') c.classList.add('correct');
+  });
+  const fb = document.getElementById('parse-feedback');
+  if (correct) {
+    fb.textContent = 'Correct.';
+    fb.className = 'feedback good';
+  } else {
+    btn.classList.add('wrong');
+    fb.textContent = 'The highlighted answer is correct — this form will come back soon.';
+    fb.className = 'feedback bad';
+    pd.order.splice(Math.min(pd.pos + 3, pd.order.length), 0, i);
+  }
+  setTimeout(() => { pd.pos++; pd.n++; pd.answered = false; renderDrills(); }, correct ? 800 : 2200);
+}
+
+/* ---------- daily review ---------- */
+let td = null;
+
+function todayPanelHTML() {
+  const t = todayStr();
+  const doneToday = state.daily.last === t;
+  const streak = state.daily.streak || 0;
+  const dueC = dueIndexes(state.cards, 999).length;
+  const dueP = dueIndexes(state.parse, 999).length;
+  const anySeen = Object.keys(state.cards).length + Object.keys(state.parse).length > 0;
+  const desc = doneToday
+    ? `<span class="today-done">✓ Done for today.</span> Come back tomorrow — or keep practicing below.`
+    : dueC + dueP > 0
+      ? `${dueC} word${dueC === 1 ? '' : 's'} and ${dueP} form${dueP === 1 ? '' : 's'} due for review, plus one verse.`
+      : anySeen
+        ? 'Nothing due yet — today’s session brings in new words and forms.'
+        : 'About ten minutes: a handful of words, a few forms, one verse.';
+  return `
+    <div class="today-panel">
+      <div class="streak-badge">
+        <div class="num">${streak}</div>
+        <div class="lbl">day streak</div>
+      </div>
+      <div class="today-meta">
+        <h3>Today’s review</h3>
+        <p>${desc}</p>
+      </div>
+      <button class="btn ${doneToday ? 'ghost' : ''}" onclick="startToday()">${doneToday ? 'Review again' : 'Start today’s review'}</button>
+    </div>`;
+}
+
+function startToday() {
+  const queue = [];
+  const dueC = dueIndexes(state.cards, 12);
+  const newC = unseenIndexes(state.cards, CARDS.length, dueC.length >= 8 ? 0 : Math.min(4, 8 - dueC.length));
+  [...dueC, ...newC].forEach(i => queue.push({ t: 'card', i, re: 0 }));
+  const dueP = dueIndexes(state.parse, 5);
+  const newP = unseenIndexes(state.parse, FORMS.length, 5 - dueP.length);
+  [...dueP, ...newP].forEach(i => queue.push({ t: 'parse', i, re: 0 }));
+  const vIdx = SENTENCES.map((s, i) => i).sort((a, b) => {
+    const sa = state.drill[a] || { seen: 0, right: 0 };
+    const sb = state.drill[b] || { seen: 0, right: 0 };
+    return (sa.right - sa.seen * 0.4) - (sb.right - sb.seen * 0.4) || a - b;
+  })[0];
+  queue.push({ t: 'verse', i: vIdx });
+  if (!queue.length) return;
+  td = { queue, i: 0, flipped: false, answered: false, right: 0, total: queue.length, n: 0 };
+  go('today');
+}
+
+function completeToday() {
+  const t = todayStr();
+  if (state.daily.last !== t) {
+    state.daily.streak = state.daily.last === todayStr(-1) ? (state.daily.streak || 0) + 1 : 1;
+    state.daily.last = t;
+    store.save();
+  }
+}
+
+function renderToday() {
+  if (!td) return go('home');
+  if (td.i >= td.queue.length) {
+    completeToday();
+    app.innerHTML = `
+      <div class="quiz" style="margin-top:2rem">
+        <div class="kicker">Daily review</div>
+        <div class="quiz-result">
+          <div class="score">${td.right} / ${td.total}</div>
+          <p>Session complete — <strong>${state.daily.streak} day${state.daily.streak === 1 ? '' : 's'}</strong> in a row.
+          ${state.daily.streak >= 7 ? 'A full week of Greek. The scribes kept this pace for a lifetime.' : 'Never miss two days in a row.'}</p>
+          <div class="quiz-actions">
+            <button class="btn ghost" onclick="startToday()">Another round</button>
+            <button class="btn" onclick="go('home')">Back to the path</button>
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+  const item = td.queue[td.i];
+  const pct = Math.round(td.i / td.queue.length * 100);
+  const head = `
+    <button class="crumb" onclick="td=null; go('home')">← Exit review</button>
+    <div class="session-progress">
+      <span>${td.i + 1} of ${td.queue.length}</span>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <span>${item.t === 'card' ? 'vocabulary' : item.t === 'parse' ? 'parsing' : 'verse'}</span>
+    </div>`;
+  if (item.t === 'card') {
+    const c = CARDS[item.i];
+    app.innerHTML = head + `
+      <button class="flashcard" onclick="td.flipped = !td.flipped; renderToday()">
+        ${td.flipped ? `
+          <span class="word">${c.w}</span>
+          <span class="answer">${c.g}</span>
+          <span class="freq">NT ×${c.f.toLocaleString()}</span>
+        ` : `
+          <span class="word">${c.w}</span>
+          <span class="hint">tap to reveal</span>
+        `}
+      </button>
+      <div class="card-actions" style="visibility:${td.flipped ? 'visible' : 'hidden'}">
+        <button class="btn again" onclick="gradeTodayCard(false)">Again</button>
+        <button class="btn got" onclick="gradeTodayCard(true)">Got it</button>
+      </div>`;
+  } else if (item.t === 'parse') {
+    app.innerHTML = head + parseCardHTML(item.i, td.n * 17 + item.i, 'answerTodayParse');
+  } else {
+    const s = SENTENCES[item.i];
+    app.innerHTML = head + `
+      <button class="flashcard" onclick="td.flipped = !td.flipped; renderToday()">
+        <span class="drill-ref">${s.ref}</span>
+        <span class="word" style="font-size:1.7rem">${s.gk}</span>
+        ${td.flipped ? `
+          <span class="answer">${s.en}</span>
+          ${s.note ? `<span class="hint" style="max-width:34rem">${s.note}</span>` : ''}
+        ` : `<span class="hint">translate it in your head, then tap to reveal</span>`}
+      </button>
+      <div class="card-actions" style="visibility:${td.flipped ? 'visible' : 'hidden'}">
+        <button class="btn again" onclick="gradeTodayVerse(false)">Missed it</button>
+        <button class="btn got" onclick="gradeTodayVerse(true)">Got it</button>
+      </div>`;
+  }
+}
+
+function advanceToday(item, right) {
+  if (right) td.right++;
+  else if (item.re < 1) {
+    td.queue.push({ ...item, re: item.re + 1 });
+    td.total++;
+  }
+  td.i++;
+  td.flipped = false;
+  td.answered = false;
+  td.n++;
+  renderToday();
+}
+
+function gradeTodayCard(right) {
+  const item = td.queue[td.i];
+  const st = state.cards[item.i] || {};
+  schedule(st, right);
+  state.cards[item.i] = st;
+  store.save();
+  advanceToday(item, right);
+}
+
+function answerTodayParse(btn) {
+  if (td.answered) return;
+  td.answered = true;
+  const item = td.queue[td.i];
+  const correct = btn.dataset.correct === 'true';
+  const st = state.parse[item.i] || {};
+  schedule(st, correct);
+  state.parse[item.i] = st;
+  store.save();
+  document.querySelectorAll('.choice').forEach(c => {
+    c.disabled = true;
+    if (c.dataset.correct === 'true') c.classList.add('correct');
+  });
+  const fb = document.getElementById('parse-feedback');
+  if (correct) { fb.textContent = 'Correct.'; fb.className = 'feedback good'; }
+  else {
+    btn.classList.add('wrong');
+    fb.textContent = 'The highlighted answer is correct.';
+    fb.className = 'feedback bad';
+  }
+  setTimeout(() => advanceToday(item, correct), correct ? 800 : 2200);
+}
+
+function gradeTodayVerse(right) {
+  const item = td.queue[td.i];
+  const st = state.drill[item.i] || {};
+  schedule(st, right);
+  state.drill[item.i] = st;
+  store.save();
+  advanceToday(item, right);
 }
 
 /* ---------- profiles ---------- */
