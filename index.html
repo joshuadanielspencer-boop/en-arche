@@ -782,11 +782,21 @@ function blankProfile() {
 }
 function normalizeProfile(p) {
   const out = Object.assign(blankProfile(), p || {});
+  ['lessons', 'cards', 'reading', 'drill', 'parse'].forEach(k => {
+    if (!out[k] || typeof out[k] !== 'object' || Array.isArray(out[k])) out[k] = {};
+  });
   if (!out.daily || typeof out.daily !== 'object') out.daily = { streak: 0, last: null };
   return out;
 }
 const store = {
   load() {
+    const db = this._load();
+    if (!db.audio || typeof db.audio !== 'object' || typeof db.audio.scheme !== 'string') {
+      db.audio = { scheme: 'erasmian' };
+    }
+    return db;
+  },
+  _load() {
     try {
       const raw = localStorage.getItem('enarche-v2');
       if (raw) {
@@ -809,7 +819,6 @@ const store = {
   }
 };
 let DB = store.load();
-if (!DB.audio) DB.audio = { scheme: 'erasmian' };
 let state = DB.profiles[DB.active];
 let view = 'home';
 let currentLesson = null;
@@ -3002,6 +3011,7 @@ const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;
 function go(v, lessonId) {
   view = v;
   currentLesson = lessonId || null;
+  backupNote = '';
   window.scrollTo(0, 0);
   render();
 }
@@ -3726,6 +3736,100 @@ function gradeTodayVerse(right) {
   advanceToday(item, right);
 }
 
+/* ---------- backup: export / import ---------- */
+let backupNote = '';
+let backupNoteOk = true;
+
+function exportProgress() {
+  const payload = {
+    app: 'en-arche',
+    format: 2,
+    exported: new Date().toISOString(),
+    active: DB.active,
+    profiles: DB.profiles,
+  };
+  try {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'en-arche-progress-' + todayStr() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    backupNote = 'Progress file saved to your downloads — keep it somewhere safe, or open it on another device and import it there.';
+    backupNoteOk = true;
+  } catch (e) {
+    backupNote = 'Export failed in this browser.';
+    backupNoteOk = false;
+  }
+  render();
+}
+
+function applyImport(data) {
+  // Accept a full export, a raw enarche-v2 store, or a single pre-profile save
+  let profiles = data && typeof data === 'object' ? data.profiles : null;
+  if ((!profiles || typeof profiles !== 'object') && data && data.lessons && data.cards) {
+    profiles = { 'Imported': data };
+  }
+  if (!profiles || typeof profiles !== 'object' || Array.isArray(profiles)) {
+    return 'That does not look like an En Archē progress file — nothing was imported.';
+  }
+  const names = Object.keys(profiles).filter(n => n.trim()).map(n => n.slice(0, 24)).slice(0, 20);
+  if (!names.length) return 'The file contains no profiles — nothing was imported.';
+  const collisions = names.filter(n => DB.profiles[n]);
+  let replace = false;
+  if (collisions.length) {
+    replace = confirm(
+      `This file contains profile${collisions.length === 1 ? '' : 's'} that already exist${collisions.length === 1 ? 's' : ''} here: ` +
+      `${collisions.join(', ')}.\n\nOK replaces them with the imported copies. ` +
+      `Cancel keeps yours and imports only the new names.`);
+  }
+  let added = 0, replaced = 0, skipped = 0;
+  for (const n of names) {
+    if (DB.profiles[n]) {
+      if (replace) { DB.profiles[n] = normalizeProfile(profiles[n]); replaced++; }
+      else skipped++;
+    } else if (Object.keys(DB.profiles).length < 20) {
+      DB.profiles[n] = normalizeProfile(profiles[n]);
+      added++;
+    } else skipped++;
+  }
+  state = DB.profiles[DB.active];
+  deck.order = [];
+  drill.order = [];
+  pd.order = [];
+  store.save();
+  const parts = [];
+  if (added) parts.push(added + ' added');
+  if (replaced) parts.push(replaced + ' replaced');
+  if (skipped) parts.push(skipped + ' kept as-is');
+  return added + replaced
+    ? `Imported ${added + replaced} profile${added + replaced === 1 ? '' : 's'} (${parts.join(', ')}).`
+    : `Nothing imported — ${parts.join(', ')}.`;
+}
+
+function importProgress(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try { data = JSON.parse(reader.result); }
+    catch (e) {
+      backupNote = 'That file could not be read as a progress file — nothing was imported.';
+      backupNoteOk = false;
+      return render();
+    }
+    backupNote = applyImport(data);
+    backupNoteOk = /^Imported /.test(backupNote);
+    render();
+  };
+  reader.onerror = () => { backupNote = 'The file could not be read.'; backupNoteOk = false; render(); };
+  reader.readAsText(file);
+}
+
 /* ---------- profiles ---------- */
 function renderProfiles() {
   const names = Object.keys(DB.profiles);
@@ -3760,6 +3864,19 @@ function renderProfiles() {
         onkeydown="if(event.key==='Enter')createProfile()">
       <button class="btn" onclick="createProfile()">Add profile</button>
     </div>
+    <div class="lesson-head" style="margin-top:2.5rem">
+      <span class="kicker">Backup &amp; transfer</span>
+      <h2 style="font-size:1.5rem">Your progress</h2>
+      <p style="color:var(--ink-soft);font-size:0.9rem;margin:0.4rem 0 0">Progress lives only in this
+      browser — clearing site data erases it, and other devices can't see it. Export a file to back it
+      up or carry it to your phone; importing there brings every profile along.</p>
+    </div>
+    <div class="quiz-actions" style="justify-content:flex-start;margin-top:1rem">
+      <button class="btn ghost" onclick="exportProgress()">Export progress file</button>
+      <button class="btn ghost" onclick="document.getElementById('import-file').click()">Import progress file</button>
+      <input type="file" id="import-file" accept=".json,application/json" style="display:none" onchange="importProgress(this)">
+    </div>
+    ${backupNote ? `<p style="font-size:0.85rem;color:var(--${backupNoteOk ? 'moss' : 'rubric'});margin-top:0.75rem">${backupNote}</p>` : ''}
     <div class="lesson-head" style="margin-top:2.5rem">
       <span class="kicker">Settings · this device</span>
       <h2 style="font-size:1.5rem">Pronunciation</h2>

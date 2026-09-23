@@ -42,6 +42,9 @@ in the browser's localStorage.
   verb system at a glance, second aorists on sight, prepositions
 - **Profiles** — several people can study in the same browser, each with
   separate progress
+- **Backup & transfer** — export all profiles as a JSON file and import it on
+  another device (Profiles → Your progress); new profiles are added, and
+  name collisions ask before replacing
 
 Pronunciation follows the Erasmian classroom convention. Set in
 [Cardo](https://fonts.google.com/specimen/Cardo), a typeface made for
