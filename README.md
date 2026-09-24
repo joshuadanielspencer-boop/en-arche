@@ -33,6 +33,10 @@ in the browser's localStorage.
   day-streak counter
 - **Parsing drills** — 90 real inflected forms from the lessons; identify the
   parse or the meaning, scheduled for review like vocabulary
+- **Typing practice** — write Greek yourself (English → Greek, copy the word,
+  or build an inflected form), with an on-screen polytonic keyboard and live
+  transliteration (`lo/gos` → λόγος, `(` rough breathing, `|` iota subscript);
+  grading distinguishes a perfect answer from right-word-wrong-marks
 - **Flashcards** — ~100 high-frequency NT words on the same review scheduler
 - **Audio** — speaker buttons on flashcards, parsing forms, tapped interlinear
   words, verses, and whole passages, via the browser's speech synthesis: an

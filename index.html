@@ -698,6 +698,51 @@
   .parse-lemma { font-size: 0.85rem; color: var(--ink-soft); margin: 0 0 1rem; }
   .parse-lemma .gk { font-size: 1.05rem; }
 
+  /* ---------- typing practice ---------- */
+  .type-input {
+    width: 100%;
+    font-family: "Cardo", "Palatino Linotype", serif;
+    font-size: 1.7rem;
+    padding: 0.55rem 0.9rem;
+    background: var(--vellum);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-sizing: border-box;
+  }
+  .type-input:focus-visible { outline: 2px solid var(--lapis); outline-offset: 1px; }
+  .gk-keyboard { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.9rem; }
+  .kb-row { display: flex; gap: 0.35rem; }
+  .gk-key {
+    font-family: "Cardo", serif;
+    font-size: 1.3rem;
+    flex: 1;
+    min-width: 0;
+    height: 2.7rem;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+    padding: 0;
+  }
+  .gk-key:hover { border-color: var(--lapis); }
+  .gk-key.mark { color: var(--lapis); }
+  .gk-key.util { font-family: "IBM Plex Sans", sans-serif; font-size: 0.8rem; }
+  .translit-hint { margin-top: 0.9rem; font-size: 0.82rem; color: var(--ink-soft); }
+  .translit-hint summary { cursor: pointer; font-weight: 500; }
+  .translit-hint code {
+    font-family: "IBM Plex Sans", sans-serif;
+    background: var(--vellum-deep);
+    border-radius: 4px;
+    padding: 0.05rem 0.35rem;
+  }
+  .type-feedback { margin-top: 1rem; font-size: 0.95rem; }
+  .type-feedback .gk { font-size: 1.3rem; }
+  .type-feedback.perfect { color: var(--moss); }
+  .type-feedback.marks { color: var(--gold); }
+  .type-feedback.wrong { color: var(--rubric); }
+
   /* ---------- audio ---------- */
   .speak-btn {
     display: inline-flex;
@@ -778,11 +823,11 @@
    State & storage
 ============================================================ */
 function blankProfile() {
-  return { lessons: {}, cards: {}, reading: {}, drill: {}, parse: {}, daily: { streak: 0, last: null } };
+  return { lessons: {}, cards: {}, reading: {}, drill: {}, parse: {}, typing: {}, daily: { streak: 0, last: null } };
 }
 function normalizeProfile(p) {
   const out = Object.assign(blankProfile(), p || {});
-  ['lessons', 'cards', 'reading', 'drill', 'parse'].forEach(k => {
+  ['lessons', 'cards', 'reading', 'drill', 'parse', 'typing'].forEach(k => {
     if (!out[k] || typeof out[k] !== 'object' || Array.isArray(out[k])) out[k] = {};
   });
   if (!out.daily || typeof out.daily !== 'object') out.daily = { streak: 0, last: null };
@@ -834,6 +879,7 @@ function switchProfile(name) {
   deck.order = [];
   drill.order = [];
   pd.order = [];
+  ty.order = [];
   store.save();
   go('home');
 }
@@ -860,6 +906,7 @@ function deleteProfile(name) {
     deck.order = [];
     drill.order = [];
     pd.order = [];
+    ty.order = [];
   }
   store.save();
   render();
@@ -3514,6 +3561,7 @@ function parseCardHTML(i, seed, onAnswer) {
 }
 
 function renderDrills() {
+  if (drillArea === 'type') return renderTyping();
   if (!pd.order.length) buildParse();
   const t = todayStr();
   const due = Object.keys(state.parse).filter(k => state.parse[k].due && state.parse[k].due <= t).length;
@@ -3527,6 +3575,7 @@ function renderDrills() {
       <span class="gk">ἐλύσαμεν</span> and knowing instantly: aorist, "we." ${FORMS.length} real forms
       from the lessons — identify the grammar or the meaning. ${due} due for review · ${mastered} mastered.</p>
     </div>
+    ${drillAreaChipsHTML()}
     <div class="deck-controls">
       ${PARSE_CATS.map(([k, label]) =>
         `<button class="chip ${pd.cat === k ? 'active' : ''}" onclick="setParseCat('${k}')">${label}</button>`).join('')}
@@ -3562,6 +3611,289 @@ function answerParse(btn) {
   }
   setTimeout(() => { pd.pos++; pd.n++; pd.answered = false; renderDrills(); }, correct ? 800 : 2200);
 }
+
+/* ---------- typing practice ---------- */
+let drillArea = 'parse';
+let ty = { mode: 'produce', order: [], pos: 0, checked: false, lastResult: null };
+
+const TRANSLIT = {
+  a:'α', b:'β', g:'γ', d:'δ', e:'ε', z:'ζ', h:'η', q:'θ', i:'ι', k:'κ', l:'λ', m:'μ',
+  n:'ν', x:'ξ', o:'ο', p:'π', r:'ρ', s:'σ', t:'τ', u:'υ', f:'φ', c:'χ', y:'ψ', w:'ω',
+};
+const KB_COMBINING = { '(':'\u0314', ')':'\u0313', '/':'\u0301', '\\':'\u0300', '=':'\u0342', '|':'\u0345' };
+const GK_LETTER = /[\u0391-\u03c9\u1f00-\u1fff]/;
+
+function greekify(s) {
+  let out = '';
+  for (const ch of s) {
+    const lower = ch.toLowerCase();
+    if (KB_COMBINING[ch]) out += KB_COMBINING[ch];
+    else if (TRANSLIT[lower]) {
+      const g = TRANSLIT[lower];
+      out += ch === lower ? g : g.toUpperCase();
+    } else out += ch;
+  }
+  return out.normalize('NFC')
+    .replace(/σ(?![\u0300-\u036f])(?![\u0391-\u03c9\u1f00-\u1fff])/g, 'ς')
+    .replace(/ς(?=[\u0391-\u03c9\u1f00-\u1fff])/g, 'σ');
+}
+
+// Canonical form for comparison: NFC with each letter's combining marks
+// in a fixed order, so a breathing typed after an accent still matches.
+function canonGreek(s) {
+  const nfd = String(s).trim().normalize('NFD');
+  const parts = [];
+  for (const ch of nfd) {
+    if (/[\u0300-\u036f]/.test(ch) && parts.length) parts[parts.length - 1].marks.push(ch);
+    else parts.push({ base: ch, marks: [] });
+  }
+  return parts.map(p => p.base + p.marks.sort().join('')).join('')
+    .normalize('NFC')
+    .replace(/σ(?![\u0391-\u03c9\u1f00-\u1fff])/g, 'ς');
+}
+function stripMarks(s) {
+  return canonGreek(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC');
+}
+
+// Accepted answers for a card's dictionary entry:
+// 'λόγος, -ου, ὁ' -> [λόγος] · 'ὁ, ἡ, τό' -> all three · 'ἐκ (ἐξ)' -> both
+function typingTargets(w) {
+  const parts = String(w).split(',').map(x => x.trim()).filter(Boolean);
+  const headIsArticle = /^(ὁ|ἡ|τό)$/.test(parts[0] || '');
+  const out = [];
+  for (const p of parts) {
+    if (p.startsWith('-') || p.startsWith('(')) continue;
+    if (!headIsArticle && /^(ὁ|ἡ|τό)$/.test(p)) continue;
+    const m = p.match(/^([^\s(]+)\s*\(([^)]+)\)$/);
+    if (m) { out.push(m[1], m[2]); continue; }
+    out.push(p);
+  }
+  return out.length ? out : [String(w).trim()];
+}
+
+let typingReverse = null;
+function typingReverseLookup(canon) {
+  if (!typingReverse) {
+    typingReverse = {};
+    CARDS.forEach((c, i) => typingTargets(c.w).forEach(t => { typingReverse[canonGreek(t)] = i; }));
+  }
+  const hit = typingReverse[canon];
+  return hit === undefined ? null : CARDS[hit];
+}
+
+function typingItem() {
+  const i = ty.order[ty.pos % ty.order.length];
+  if (ty.mode === 'forms') {
+    const f = FORMS[i];
+    return { i, targets: [f.f], display: f.f, prompt: f, kind: 'forms' };
+  }
+  const c = CARDS[i];
+  return { i, targets: typingTargets(c.w), display: c.w, prompt: c, kind: ty.mode };
+}
+
+function buildTyping() {
+  const total = ty.mode === 'forms' ? FORMS.length : CARDS.length;
+  const idxs = Array.from({ length: total }, (_, i) => i);
+  idxs.sort((a, b) => {
+    const sa = state.typing[ty.mode + ':' + a] || { seen: 0, right: 0 };
+    const sb = state.typing[ty.mode + ':' + b] || { seen: 0, right: 0 };
+    return (sa.right - sa.seen * 0.4) - (sb.right - sb.seen * 0.4) || a - b;
+  });
+  ty.order = idxs;
+  ty.pos = 0;
+  ty.checked = false;
+  ty.lastResult = null;
+}
+
+const KB_ROWS = [
+  ['α','β','γ','δ','ε','ζ','η','θ'],
+  ['ι','κ','λ','μ','ν','ξ','ο','π'],
+  ['ρ','σ','τ','υ','φ','χ','ψ','ω'],
+];
+const KB_MARKS = [
+  ['\u0314','\u25CC\u0314'], ['\u0313','\u25CC\u0313'], ['\u0301','\u25CC\u0301'],
+  ['\u0300','\u25CC\u0300'], ['\u0342','\u25CC\u0342'], ['\u0345','\u25CC\u0345'],
+];
+
+function keyboardHTML() {
+  return `<div class="gk-keyboard">
+    ${KB_ROWS.map(row => `<div class="kb-row">
+      ${row.map(k => `<button class="gk-key greek" onpointerdown="event.preventDefault()" onclick="kbKey('${k}')">${k}</button>`).join('')}
+    </div>`).join('')}
+    <div class="kb-row">
+      ${KB_MARKS.map(([ch, label]) => `<button class="gk-key mark greek" onpointerdown="event.preventDefault()" onclick="kbKey('\\u${ch.codePointAt(0).toString(16).padStart(4, '0')}')" title="combining mark">${label}</button>`).join('')}
+      <button class="gk-key util" onpointerdown="event.preventDefault()" onclick="kbKey(' ')">space</button>
+      <button class="gk-key util" onpointerdown="event.preventDefault()" onclick="kbBackspace()">⌫</button>
+    </div>
+  </div>
+  <details class="translit-hint">
+    <summary>Type with your own keyboard instead</summary>
+    <p style="margin:0.5rem 0 0">Letters map as written, plus <code>h</code>=η ·
+    <code>q</code>=θ · <code>x</code>=ξ · <code>c</code>=χ · <code>y</code>=ψ ·
+    <code>w</code>=ω · <code>e</code>=ε · <code>o</code>=ο. Marks go after their vowel:
+    <code>(</code> rough breathing · <code>)</code> smooth · <code>/</code> acute ·
+    <code>\\</code> grave · <code>=</code> circumflex · <code>|</code> iota subscript.
+    So <code>lo/gos</code> → λόγος and <code>a)rxh=|</code> → ἀρχῇ. Final sigma is automatic.</p>
+  </details>`;
+}
+
+function kbKey(ch) {
+  const input = document.getElementById('type-input');
+  if (!input) return;
+  const s = input.selectionStart ?? input.value.length;
+  const e = input.selectionEnd ?? input.value.length;
+  input.value = input.value.slice(0, s) + ch + input.value.slice(e);
+  input.setSelectionRange(s + ch.length, s + ch.length);
+  transformTypeInput(input);
+  input.focus();
+}
+
+function kbBackspace() {
+  const input = document.getElementById('type-input');
+  if (!input) return;
+  const s = input.selectionStart ?? input.value.length;
+  const e = input.selectionEnd ?? input.value.length;
+  if (s === e && s > 0) {
+    input.value = input.value.slice(0, s - 1) + input.value.slice(e);
+    input.setSelectionRange(s - 1, s - 1);
+  } else if (e > s) {
+    input.value = input.value.slice(0, s) + input.value.slice(e);
+    input.setSelectionRange(s, s);
+  }
+  transformTypeInput(input);
+  input.focus();
+}
+
+function transformTypeInput(input) {
+  const atEnd = input.selectionStart === input.value.length && input.selectionEnd === input.selectionStart;
+  const before = input.value;
+  const after = greekify(before);
+  if (after !== before) {
+    const pos = input.selectionStart;
+    input.value = after;
+    const p = atEnd ? after.length : Math.min(pos, after.length);
+    input.setSelectionRange(p, p);
+  }
+}
+
+function typingKeydown(ev) {
+  if (ev.key === 'Enter') {
+    ev.preventDefault();
+    if (ty.checked) nextTyping();
+    else checkTyping();
+  }
+}
+
+function renderTyping() {
+  if (!ty.order.length) buildTyping();
+  const item = typingItem();
+  const total = ty.order.length;
+  const known = Object.keys(state.typing).filter(k => k.startsWith(ty.mode + ':') && state.typing[k].right >= 2).length;
+  let promptHTML;
+  if (item.kind === 'copy') {
+    promptHTML = `<div class="kicker">Copy it exactly — marks and all</div>
+      <p class="parse-form greek">${item.targets[0]} ${speakBtn(item.targets[0])}</p>`;
+  } else if (item.kind === 'forms') {
+    promptHTML = `<div class="kicker">Build the form</div>
+      <p class="question" style="margin-bottom:0.2rem">${item.prompt.p}</p>
+      <p class="parse-lemma">of <span class="gk">${item.prompt.l.split(' — ')[0]}</span> — ${item.prompt.l.split(' — ')[1] || ''}</p>`;
+  } else {
+    promptHTML = `<div class="kicker">Write it in Greek</div>
+      <p class="question" style="margin-bottom:0.2rem">${item.prompt.g}</p>
+      <p class="parse-lemma">NT ×${item.prompt.f.toLocaleString()}</p>`;
+  }
+  let feedbackHTML = '';
+  if (ty.checked && ty.lastResult) {
+    const r = ty.lastResult;
+    if (r.result === 'perfect') {
+      feedbackHTML = `<div class="type-feedback perfect">Perfect — <span class="gk">${item.display}</span> ${speakBtn(item.targets[0])}</div>`;
+    } else if (r.result === 'marks') {
+      feedbackHTML = `<div class="type-feedback marks">Right word — mind the marks. It is written
+        <span class="gk">${item.targets[0]}</span>; you typed <span class="gk">${r.typed}</span>. ${speakBtn(item.targets[0])}</div>`;
+    } else {
+      const other = r.typed ? typingReverseLookup(canonGreek(r.typed)) : null;
+      feedbackHTML = `<div class="type-feedback wrong">${r.typed ? `You typed <span class="gk">${r.typed}</span>` : 'Revealed'} —
+        the answer is <span class="gk">${item.display}</span>. ${speakBtn(item.targets[0])}
+        ${other && item.kind !== 'forms' && other.g !== item.prompt.g ? `<br><span style="color:var(--ink-soft)">(<span class="gk">${r.typed}</span> is the word for “${other.g}.”)</span>` : ''}</div>`;
+    }
+  }
+  app.innerHTML = `
+    <div class="lesson-head" style="margin-top:0.5rem">
+      <span class="kicker">Production</span>
+      <h2>Typing Greek</h2>
+      <p style="color:var(--ink-soft);font-size:0.9rem;margin:0.4rem 0 0">Recognition is half the
+      language — writing it yourself is the other half. Use the keyboard below or type
+      transliteration on your own keys. ${known} of ${total} in this mode typed right twice.</p>
+    </div>
+    ${drillAreaChipsHTML()}
+    <div class="deck-controls">
+      ${[['produce','English → Greek'],['copy','Copy the word'],['forms','Build the form']].map(([k, label]) =>
+        `<button class="chip ${ty.mode === k ? 'active' : ''}" onclick="setTypingMode('${k}')">${label}</button>`).join('')}
+    </div>
+    <div class="quiz" style="margin-top:1rem">
+      ${promptHTML}
+      <input id="type-input" class="type-input greek" autocomplete="off" autocapitalize="off"
+        spellcheck="false" aria-label="Type the Greek answer"
+        oninput="transformTypeInput(this)" onkeydown="typingKeydown(event)"
+        ${ty.checked ? 'readonly' : ''} value="${ty.checked && ty.lastResult ? ty.lastResult.typed.replace(/"/g, '&quot;') : ''}">
+      ${feedbackHTML}
+      <div class="quiz-actions" style="justify-content:flex-start;margin-top:1rem">
+        ${ty.checked
+          ? `<button class="btn" onclick="nextTyping()">Next →</button>`
+          : `<button class="btn" onclick="checkTyping()">Check</button>
+             <button class="btn ghost" onclick="revealTyping()">Show me</button>`}
+      </div>
+      ${ty.checked ? '' : keyboardHTML()}
+    </div>
+    <div class="deck-stats">Item ${(ty.pos % ty.order.length) + 1} of ${ty.order.length} in this set — Enter checks, Enter again advances</div>`;
+  const inp = document.getElementById('type-input');
+  if (inp && !ty.checked) {
+    inp.focus();
+    inp.setSelectionRange(inp.value.length, inp.value.length);
+  }
+}
+
+function setTypingMode(m) { ty.mode = m; buildTyping(); renderTyping(); }
+
+function gradeTyping(raw) {
+  const item = typingItem();
+  const typedC = raw ? canonGreek(raw) : '';
+  let result;
+  if (typedC && item.targets.some(t => canonGreek(t) === typedC)) result = 'perfect';
+  else if (typedC && item.targets.some(t => stripMarks(t) === stripMarks(raw))) result = 'marks';
+  else result = 'wrong';
+  const key = ty.mode + ':' + item.i;
+  const st = state.typing[key] || { seen: 0, right: 0 };
+  st.seen++;
+  if (result !== 'wrong') st.right++;
+  state.typing[key] = st;
+  store.save();
+  if (result === 'wrong') ty.order.splice(Math.min(ty.pos + 3, ty.order.length), 0, item.i);
+  ty.checked = true;
+  ty.lastResult = { result, typed: typedC };
+  renderTyping();
+}
+
+function checkTyping() {
+  const input = document.getElementById('type-input');
+  if (!input || !input.value.trim()) return;
+  gradeTyping(input.value);
+}
+function revealTyping() { gradeTyping(''); }
+function nextTyping() {
+  ty.pos++;
+  ty.checked = false;
+  ty.lastResult = null;
+  renderTyping();
+}
+
+function drillAreaChipsHTML() {
+  return `<div class="deck-controls" style="margin-bottom:0.5rem">
+    <button class="chip ${drillArea === 'parse' ? 'active' : ''}" onclick="setDrillArea('parse')">Parsing</button>
+    <button class="chip ${drillArea === 'type' ? 'active' : ''}" onclick="setDrillArea('type')">Typing</button>
+  </div>`;
+}
+function setDrillArea(a) { drillArea = a; render(); }
 
 /* ---------- daily review ---------- */
 let td = null;
@@ -3925,6 +4257,7 @@ function handleRemote(data) {
     deck.order = [];
     drill.order = [];
     pd.order = [];
+    ty.order = [];
     store.save(false);
     // Refresh passive views; a lesson quiz, passage, or daily session in
     // progress keeps running and picks up merged data on next navigation.
