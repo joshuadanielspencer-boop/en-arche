@@ -814,8 +814,12 @@ const store = {
     } catch (e) {}
     return { active: 'Student', profiles: { 'Student': blankProfile() } };
   },
-  save() {
+  // save(false) persists without stamping the active profile — used when
+  // applying remote sync data, so pulled content never looks locally newer.
+  save(stampActive) {
+    if (stampActive !== false && state) state.updatedAt = Date.now();
     try { localStorage.setItem('enarche-v2', JSON.stringify(DB)); } catch (e) {}
+    scheduleSyncPush();
   }
 };
 let DB = store.load();
@@ -839,6 +843,7 @@ function createProfile() {
   if (!name) return;
   if (!DB.profiles[name]) {
     DB.profiles[name] = blankProfile();
+    if (DB.deleted) delete DB.deleted[name];
     store.save();
   }
   switchProfile(name);
@@ -847,6 +852,8 @@ function deleteProfile(name) {
   if (!DB.profiles[name] || Object.keys(DB.profiles).length <= 1) return;
   if (!confirm(`Delete the profile “${name}” and all its progress? This cannot be undone.`)) return;
   delete DB.profiles[name];
+  DB.deleted = DB.deleted || {};
+  DB.deleted[name] = Date.now();
   if (DB.active === name) {
     DB.active = Object.keys(DB.profiles)[0];
     state = DB.profiles[DB.active];
@@ -3808,10 +3815,12 @@ function applyImport(data) {
   let added = 0, replaced = 0, skipped = 0;
   for (const n of names) {
     if (DB.profiles[n]) {
-      if (replace) { DB.profiles[n] = normalizeProfile(profiles[n]); replaced++; }
+      if (replace) { DB.profiles[n] = normalizeProfile(profiles[n]); DB.profiles[n].updatedAt = Date.now(); replaced++; }
       else skipped++;
     } else if (Object.keys(DB.profiles).length < 20) {
       DB.profiles[n] = normalizeProfile(profiles[n]);
+      DB.profiles[n].updatedAt = Date.now();
+      if (DB.deleted) delete DB.deleted[n];
       added++;
     } else skipped++;
   }
@@ -3848,6 +3857,171 @@ function importProgress(input) {
   };
   reader.onerror = () => { backupNote = 'The file could not be read.'; backupNoteOk = false; render(); };
   reader.readAsText(file);
+}
+
+/* ============================================================
+   Automatic cross-device sync (claude.ai artifact copy only).
+   Each Claude account gets a private document in the artifact's
+   database; profiles merge by their updatedAt stamp (device
+   clocks; last-writer-wins), deletions carry tombstones, and a
+   serialization guard keeps devices from echoing each other.
+============================================================ */
+let sync = {
+  status: 'off',   // off | connecting | on | unavailable | error
+  on: false,
+  ref: null,
+  unsub: null,
+  timer: null,
+  busy: false,
+  dirty: false,
+  lastPushed: '',
+  lastSyncAt: null,
+};
+
+function syncKey(profiles, deleted) {
+  return JSON.stringify([profiles || {}, deleted || {}]);
+}
+
+function mergeSync(remote) {
+  // Returns how many profiles changed locally from the pull.
+  const tombs = Object.assign({}, DB.deleted || {});
+  for (const [n, t] of Object.entries(remote.deleted || {})) {
+    if (typeof t === 'number') tombs[n] = Math.max(t, tombs[n] || 0);
+  }
+  const remoteProfiles = remote.profiles && typeof remote.profiles === 'object' ? remote.profiles : {};
+  const names = new Set([...Object.keys(DB.profiles), ...Object.keys(remoteProfiles)]);
+  let pulled = 0;
+  for (const n of names) {
+    const l = DB.profiles[n];
+    const r = remoteProfiles[n];
+    const lt = (l && l.updatedAt) || 0;
+    const rt = (r && r.updatedAt) || 0;
+    const tomb = tombs[n] || 0;
+    if (tomb > lt && tomb > rt) {
+      if (l) { delete DB.profiles[n]; pulled++; }
+      continue;
+    }
+    if (r && (!l || rt > lt)) {
+      const merged = normalizeProfile(r);
+      merged.updatedAt = rt;
+      DB.profiles[n] = merged;
+      pulled++;
+    }
+  }
+  DB.deleted = tombs;
+  if (!Object.keys(DB.profiles).length) DB.profiles = { 'Student': blankProfile() };
+  if (!DB.profiles[DB.active]) DB.active = Object.keys(DB.profiles)[0];
+  return pulled;
+}
+
+function handleRemote(data) {
+  if (!data || typeof data !== 'object') return;
+  const key = syncKey(data.profiles, data.deleted);
+  if (key === sync.lastPushed) { sync.lastSyncAt = Date.now(); return; }
+  const pulled = mergeSync(data);
+  sync.lastSyncAt = Date.now();
+  if (pulled > 0) {
+    state = DB.profiles[DB.active];
+    deck.order = [];
+    drill.order = [];
+    pd.order = [];
+    store.save(false);
+    // Refresh passive views; a lesson quiz, passage, or daily session in
+    // progress keeps running and picks up merged data on next navigation.
+    if (['home', 'profiles', 'reading', 'cards', 'drills', 'ref'].includes(view)) render();
+  } else {
+    // Remote is missing or behind our local state — offer ours.
+    scheduleSyncPush(1000);
+  }
+}
+
+function scheduleSyncPush(delay) {
+  if (!sync.on) return;
+  clearTimeout(sync.timer);
+  sync.timer = setTimeout(pushSync, typeof delay === 'number' ? delay : 2500);
+}
+
+async function pushSync() {
+  if (!sync.on || !sync.ref) return;
+  if (sync.busy) { sync.dirty = true; return; }
+  const key = syncKey(DB.profiles, DB.deleted);
+  if (key === sync.lastPushed) return;
+  sync.busy = true;
+  try {
+    const payload = JSON.parse(JSON.stringify({
+      app: 'en-arche',
+      format: 2,
+      updatedAt: Date.now(),
+      profiles: DB.profiles,
+      deleted: DB.deleted || {},
+    }));
+    await sync.ref.set(payload);
+    sync.lastPushed = key;
+    sync.lastSyncAt = Date.now();
+    if (view === 'profiles') render();
+  } catch (e) {
+    sync.status = 'error';
+    if (view === 'profiles') render();
+  }
+  sync.busy = false;
+  if (sync.dirty) { sync.dirty = false; scheduleSyncPush(1000); }
+}
+
+async function initSync() {
+  if (sync.on || sync.status === 'connecting') return;
+  if (!(window.claude && typeof window.claude.use === 'function')) return;
+  sync.status = 'connecting';
+  if (view === 'profiles') render();
+  try {
+    const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+    const uid = db && user ? await user.id() : null;
+    if (!db || !uid) {
+      sync.status = 'unavailable';
+      if (view === 'profiles') render();
+      return;
+    }
+    sync.ref = db.doc('data/users/' + uid + '/progress');
+    sync.on = true;
+    sync.status = 'on';
+    sync.unsub = sync.ref.onSnapshot(
+      snap => {
+        if (!snap.exists) { scheduleSyncPush(1000); return; }
+        if (snap.metadata && snap.metadata.hasPendingWrites) return;
+        handleRemote(snap.data());
+      },
+      () => {
+        sync.on = false;
+        sync.status = 'error';
+        if (view === 'profiles') render();
+      }
+    );
+    if (view === 'profiles') render();
+  } catch (e) {
+    sync.status = 'error';
+    if (view === 'profiles') render();
+  }
+}
+
+function syncStatusHTML() {
+  const t = sync.lastSyncAt
+    ? new Date(sync.lastSyncAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : null;
+  const map = {
+    off: 'Automatic sync works when this app is opened as the Claude artifact, signed in on each device. ' +
+         'This copy stores progress in this browser only — use the export and import buttons above to move it by hand.',
+    connecting: 'Connecting to your Claude account…',
+    on: `<span class="today-done">✓ Sync is on.</span> Profiles on this device merge automatically with your ` +
+        `other devices through your Claude account.${t ? ' Last synced ' + t + '.' : ''}`,
+    unavailable: 'Sync is not available for this account or view; progress stays in this browser. ' +
+                 'The export and import buttons above still work.',
+    error: 'Sync hit a problem this session. Your progress is safe in this browser and will sync next time the page loads.',
+  };
+  return `
+    <div class="lesson-head" style="margin-top:2.5rem">
+      <span class="kicker">Across devices</span>
+      <h2 style="font-size:1.5rem">Automatic sync</h2>
+      <p style="color:var(--ink-soft);font-size:0.9rem;margin:0.4rem 0 0">${map[sync.status] || map.off}</p>
+    </div>`;
 }
 
 /* ---------- profiles ---------- */
@@ -3897,6 +4071,7 @@ function renderProfiles() {
       <input type="file" id="import-file" accept=".json,application/json" style="display:none" onchange="importProgress(this)">
     </div>
     ${backupNote ? `<p style="font-size:0.85rem;color:var(--${backupNoteOk ? 'moss' : 'rubric'});margin-top:0.75rem">${backupNote}</p>` : ''}
+    ${syncStatusHTML()}
     <div class="lesson-head" style="margin-top:2.5rem">
       <span class="kicker">Settings · this device</span>
       <h2 style="font-size:1.5rem">Pronunciation</h2>
@@ -4031,6 +4206,7 @@ function renderRef() {
 
 syncAudioClass();
 render();
+initSync();
 </script>
 </body>
 </html>
