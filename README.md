@@ -6,6 +6,13 @@ reading real New Testament texts at every stage — with user profiles,
 per-lesson quizzes, guided reading with translation practice, ~100
 high-frequency flashcards, and paradigm reference tables.
 
+## Develop it
+
+`node test/validate.mjs` boots the app in a sandbox and checks every lesson,
+quiz, passage gloss, flashcard, parsing form, and the transliteration /
+scheduler / sync-merge engines (~1,700 checks). The same script runs in CI
+on every push.
+
 ## Run it
 
 Open `index.html` in any browser (or serve it from GitHub Pages). No build
@@ -25,9 +32,10 @@ in the browser's localStorage.
   subjunctive, imperative, the Lord's Prayer, perfect and passive, and a
   capstone reading of 1 John 1:5–9
 - **Lesson 29** — the road onward (grammars, readers, daily tools)
-- **Reading tab** — six guided passages, each with a tap-to-gloss interlinear
-  and a translate-it-yourself mode, plus a self-graded drill of twenty short
-  famous verses
+- **Reading tab** — nine guided passages (John's prologue through the Lord's
+  Prayer, 1 John 1 complete, and Mark's baptism and calling narratives), each
+  with a tap-to-gloss interlinear and a translate-it-yourself mode, plus a
+  self-graded drill of twenty short famous verses
 - **Daily review** — a one-tap session on the home path: vocabulary due today
   (SM-2-style spaced repetition), five parsing questions, and one verse, with a
   day-streak counter
