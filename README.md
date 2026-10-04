@@ -35,7 +35,8 @@ in the browser's localStorage.
 - **Reading tab** — nine guided passages (John's prologue through the Lord's
   Prayer, 1 John 1 complete, and Mark's baptism and calling narratives), each
   with a tap-to-gloss interlinear and a translate-it-yourself mode, plus a
-  self-graded drill of twenty short famous verses
+  self-graded drill of 36 famous verses — including the Lord's Prayer
+  petition by petition and key lines from every guided reading
 - **Daily review** — a one-tap session on the home path: vocabulary due today
   (SM-2-style spaced repetition), five parsing questions, and one verse, with a
   day-streak counter

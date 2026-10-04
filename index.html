@@ -1740,6 +1740,24 @@ const SENTENCES = [
   { gk:'ἡ ἀγάπη οὐδέποτε πίπτει.', ref:'1 Corinthians 13:8', en:'Love never fails.', note:'πίπτει — literally "falls." Present tense: never, at any time.', tier:3 },
   { gk:'εἰρήνην ἀφίημι ὑμῖν, εἰρήνην τὴν ἐμὴν δίδωμι ὑμῖν.', ref:'John 14:27', en:'Peace I leave with you; my peace I give to you.', note:'The objects stand first for emphasis — Greek word order at work.', tier:3 },
   { gk:'ἀκολούθει μοι.', ref:'Matthew 9:9', en:'Follow me.', note:'Present imperative + dative: keep following, as a way of life.', tier:3 },
+  // --- lines from the guided readings ---
+  { gk:'Ἐν ἀρχῇ ἦν ὁ λόγος, καὶ ὁ λόγος ἦν πρὸς τὸν θεόν.', ref:'John 1:1', en:'In the beginning was the Word, and the Word was with God.', note:'The app’s namesake. πρός + accusative: with, face to face.', tier:1 },
+  { gk:'ἐν αὐτῷ ζωὴ ἦν, καὶ ἡ ζωὴ ἦν τὸ φῶς τῶν ἀνθρώπων.', ref:'John 1:4', en:'In him was life, and the life was the light of men.', note:'Two imperfects of εἰμί; τῶν ἀνθρώπων — genitive plural.', tier:1 },
+  { gk:'τὸ φῶς ἐν τῇ σκοτίᾳ φαίνει.', ref:'John 1:5', en:'The light shines in the darkness.', note:'φαίνει — present tense: it keeps on shining.', tier:1 },
+  { gk:'ἐγώ εἰμι ἡ ὁδὸς καὶ ἡ ἀλήθεια καὶ ἡ ζωή.', ref:'John 14:6', en:'I am the way and the truth and the life.', note:'Emphatic ἐγώ; ὁδός is feminine despite its -ος ending.', tier:1 },
+  { gk:'πάντα δι᾽ αὐτοῦ ἐγένετο.', ref:'John 1:3', en:'All things came into being through him.', note:'ἐγένετο — the aorist of γίνομαι; διά + genitive = through.', tier:2 },
+  { gk:'εἰς τὰ ἴδια ἦλθεν, καὶ οἱ ἴδιοι αὐτὸν οὐ παρέλαβον.', ref:'John 1:11', en:'He came to his own home, and his own people did not receive him.', note:'One adjective, two genders: τὰ ἴδια (home) vs. οἱ ἴδιοι (people).', tier:2 },
+  { gk:'ὁ θεὸς φῶς ἐστιν καὶ σκοτία ἐν αὐτῷ οὐκ ἔστιν οὐδεμία.', ref:'1 John 1:5', en:'God is light, and in him there is no darkness at all.', note:'Article-less predicate φῶς, and an emphatic double negative.', tier:2 },
+  { gk:'σὺ εἶ ὁ υἱός μου ὁ ἀγαπητός, ἐν σοὶ εὐδόκησα.', ref:'Mark 1:11', en:'You are my beloved Son; in you I am well pleased.', note:'The voice at the baptism. Repeated article: attributive position.', tier:2 },
+  { gk:'ἵνα πᾶς ὁ πιστεύων εἰς αὐτὸν μὴ ἀπόληται ἀλλ᾽ ἔχῃ ζωὴν αἰώνιον.', ref:'John 3:16', en:'…so that everyone who believes in him should not perish but have eternal life.', note:'Two subjunctives hanging from one ἵνα; πᾶς ὁ πιστεύων — the participle.', tier:3 },
+  { gk:'δεῦτε ὀπίσω μου, καὶ ποιήσω ὑμᾶς γενέσθαι ἁλιεῖς ἀνθρώπων.', ref:'Mark 1:17', en:'Come, follow me, and I will make you become fishers of men.', note:'ποιήσω — future; γενέσθαι — the aorist infinitive of γίνομαι.', tier:3 },
+  { gk:'ἐὰν ὁμολογῶμεν τὰς ἁμαρτίας ἡμῶν, πιστός ἐστιν καὶ δίκαιος.', ref:'1 John 1:9', en:'If we confess our sins, he is faithful and just.', note:'ἐάν + subjunctive: a live condition, door open.', tier:3 },
+  // --- the Lord's Prayer, petition by petition ---
+  { gk:'Πάτερ ἡμῶν ὁ ἐν τοῖς οὐρανοῖς· ἁγιασθήτω τὸ ὄνομά σου.', ref:'Matthew 6:9', en:'Our Father in the heavens, let your name be hallowed.', note:'Πάτερ — vocative; ἁγιασθήτω — a 3rd-person aorist passive imperative.', tier:3 },
+  { gk:'ἐλθέτω ἡ βασιλεία σου· γενηθήτω τὸ θέλημά σου, ὡς ἐν οὐρανῷ καὶ ἐπὶ γῆς.', ref:'Matthew 6:10', en:'Let your kingdom come; let your will be done, as in heaven, so also on earth.', note:'Two more 3rd-person imperatives — commands English can’t quite say.', tier:3 },
+  { gk:'τὸν ἄρτον ἡμῶν τὸν ἐπιούσιον δὸς ἡμῖν σήμερον.', ref:'Matthew 6:11', en:'Give us today our daily bread.', note:'δός — aorist imperative of δίδωμι; ἐπιούσιον — the famous one-of-a-kind word.', tier:3 },
+  { gk:'καὶ ἄφες ἡμῖν τὰ ὀφειλήματα ἡμῶν, ὡς καὶ ἡμεῖς ἀφήκαμεν τοῖς ὀφειλέταις ἡμῶν.', ref:'Matthew 6:12', en:'And forgive us our debts, as we also have forgiven our debtors.', note:'ἄφες and ἀφήκαμεν — the same verb ἀφίημι, asked and enacted.', tier:3 },
+  { gk:'καὶ μὴ εἰσενέγκῃς ἡμᾶς εἰς πειρασμόν, ἀλλὰ ῥῦσαι ἡμᾶς ἀπὸ τοῦ πονηροῦ.', ref:'Matthew 6:13', en:'And do not bring us into testing, but rescue us from the evil one.', note:'μή + aorist subjunctive = prohibition; ῥῦσαι — a middle imperative.', tier:3 },
 ];
 
 /* ============================================================
